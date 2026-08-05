@@ -1,36 +1,77 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Roomly — meeting room reservations
 
-## Getting Started
+Roomly is a timezone-aware office meeting room reservation app built for UA-Skills event2. Employees can browse a hand-built weekly calendar, see who owns every booking, reserve an available interval, cancel their own bookings, and review upcoming or past reservations.
 
-First, run the development server:
+## Run everything with Docker
+
+Requirements: Docker Desktop with Docker Compose.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+docker compose up --build
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000). The app container waits for PostgreSQL, applies migrations, and runs the idempotent seed before starting Next.js.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Demo accounts:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Name | Email | Password |
+| --- | --- | --- |
+| Alex Johnson | `alex@room.test` | `DemoPass123!` |
+| Maria Novak | `maria@room.test` | `DemoPass123!` |
 
-## Learn More
+The seed creates six meeting rooms and several bookings in the next calendar week.
 
-To learn more about Next.js, take a look at the following resources:
+## Local development
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Requirements: Node.js 24 LTS, npm, Docker, and a copy of `.env.example` named `.env`.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+docker compose up db -d
+npm ci
+npm run db:deploy
+npm run db:seed
+npm run dev
+```
 
-## Deploy on Vercel
+Useful commands:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+npm test              # required unit tests
+npm run test:race     # integration check for concurrent booking protection
+npm run lint
+npm run build
+npm run db:migrate    # create a migration during development
+npm run db:seed
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## How time and conflicts work
+
+`Booking.startAt` and `Booking.endAt` are PostgreSQL `timestamptz` values and are sent over the API as UTC ISO strings. The server converts both instants to `Europe/Kyiv` before checking the 09:00–19:00 office window. The browser detects its IANA timezone and converts every visible event and slot independently, so no fixed UTC offset is assumed and daylight-saving transitions remain correct.
+
+Intervals are treated as half-open ranges: `[start, end)`. Two intervals overlap only when `newStart < existingEnd && newEnd > existingStart`; consequently, `10:00–11:00` and `11:00–12:00` are valid neighbours. The API performs a friendly overlap check, while PostgreSQL is the final authority: a partial GiST exclusion constraint rejects overlapping active `tstzrange` values in the same room. This guarantees that two concurrent requests can create exactly one booking. Cancelling sets `cancelledAt`, so a cancelled interval no longer participates in that constraint.
+
+## Architecture
+
+- Next.js 16 App Router, React 19, TypeScript, and Tailwind CSS.
+- PostgreSQL 17 with Prisma ORM 7 and explicit SQL migrations.
+- Database-backed sessions: the browser stores a random `httpOnly` token; PostgreSQL stores only its SHA-256 hash.
+- Argon2id password hashing and server-side Zod validation.
+- A custom CSS Grid weekly calendar — no calendar component library.
+- Vitest unit coverage for touching, partially overlapping, identical, and adjacent-day intervals.
+
+Main API routes:
+
+- `POST /api/auth/register`, `/login`, `/logout`
+- `GET /api/rooms`
+- `GET|POST /api/bookings`
+- `DELETE /api/bookings/:id`
+- `GET /api/me/bookings?status=upcoming|past`
+
+Errors use `{ "error": { "code", "message", "fieldErrors?" } }` and meaningful HTTP statuses (`401`, `403`, `404`, `409`, `422`).
+
+## Implemented bonus points
+
+1. Docker Compose starts PostgreSQL and the application with one command.
+2. Database-level race protection guarantees a single winner for concurrent requests.
+
+The full mobile-calendar bonus is intentionally out of scope, but the layout remains usable on narrow screens with a horizontally scrollable schedule.
