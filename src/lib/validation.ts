@@ -26,3 +26,20 @@ export const loginSchema = z.object({
   email,
   password: z.string().min(1, "Password is required.").max(72),
 });
+
+export const createBookingSchema = z.object({
+  roomId: z.string().uuid("Choose a valid meeting room."),
+  title: z
+    .string()
+    .trim()
+    .min(1, "Booking title is required.")
+    .max(100, "Booking title must contain at most 100 characters."),
+  startAt: z.string().datetime({ offset: true }),
+  endAt: z.string().datetime({ offset: true }),
+});
+
+export const bookingRangeSchema = z.object({
+  roomId: z.string().uuid(),
+  from: z.string().datetime({ offset: true }),
+  to: z.string().datetime({ offset: true }),
+});

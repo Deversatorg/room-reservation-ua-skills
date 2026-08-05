@@ -8,6 +8,10 @@ export type ApiErrorCode =
   | "EMAIL_TAKEN"
   | "NOT_FOUND"
   | "SLOT_OCCUPIED"
+  | "PAST_TIME"
+  | "INVALID_TIME_STEP"
+  | "INVALID_DURATION"
+  | "OUTSIDE_WORKING_HOURS"
   | "SERVER_ERROR";
 
 type FieldErrors = Record<string, string[]>;
