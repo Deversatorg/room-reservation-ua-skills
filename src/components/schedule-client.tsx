@@ -19,7 +19,6 @@ import {
   useEffect,
   useMemo,
   useState,
-  useSyncExternalStore,
   type FormEvent,
 } from "react";
 
@@ -29,6 +28,7 @@ import {
   OFFICE_TIME_ZONE,
   SLOT_MINUTES,
 } from "@/lib/booking-rules";
+import { useUserTimeZone } from "@/hooks/use-user-time-zone";
 import type { BookingDto, RoomDto } from "@/lib/types";
 
 type SelectedSlot = { officeDate: string; startTime: string };
@@ -45,11 +45,7 @@ export function ScheduleClient({
   const router = useRouter();
   const [roomId, setRoomId] = useState(initialRoomId);
   const [weekStart, setWeekStart] = useState(initialWeek);
-  const userZone = useSyncExternalStore(
-    subscribeToTimeZone,
-    getBrowserTimeZone,
-    getServerTimeZone,
-  );
+  const userZone = useUserTimeZone();
   const [bookings, setBookings] = useState<BookingDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string>();
@@ -665,16 +661,4 @@ function timeToMinutes(time: string) {
 function addMinutes(time: string, amount: number) {
   const minutes = timeToMinutes(time) + amount;
   return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
-}
-
-function subscribeToTimeZone() {
-  return () => undefined;
-}
-
-function getBrowserTimeZone() {
-  return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-}
-
-function getServerTimeZone() {
-  return undefined;
 }
