@@ -11,6 +11,7 @@ import {
   MapPin,
   Plus,
   Repeat2,
+  SlidersHorizontal,
   RefreshCw,
   Users,
   X,
@@ -19,8 +20,10 @@ import { useRouter } from "next/navigation";
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
   type FormEvent,
+  type TouchEvent,
 } from "react";
 
 import {
@@ -31,6 +34,7 @@ import {
 } from "@/lib/booking-rules";
 import { CancelBookingDialog } from "@/components/cancel-booking-dialog";
 import { useUserTimeZone } from "@/hooks/use-user-time-zone";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import type { BookingDto, RoomDto } from "@/lib/types";
 
 type SelectedSlot = { officeDate: string; startTime: string };
@@ -39,14 +43,21 @@ export function ScheduleClient({
   rooms,
   initialRoomId,
   initialWeek,
+  initialDay,
+  initialMinCapacity,
 }: {
   rooms: RoomDto[];
   initialRoomId: string;
   initialWeek: string;
+  initialDay: string;
+  initialMinCapacity: number;
 }) {
   const router = useRouter();
   const [roomId, setRoomId] = useState(initialRoomId);
   const [weekStart, setWeekStart] = useState(initialWeek);
+  const [selectedDay, setSelectedDay] = useState(initialDay);
+  const [minCapacity, setMinCapacity] = useState(initialMinCapacity);
+  const isMobile = useMediaQuery("(max-width: 767px)");
   const userZone = useUserTimeZone();
   const [bookings, setBookings] = useState<BookingDto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,7 +66,13 @@ export function ScheduleClient({
   const [selectedSlot, setSelectedSlot] = useState<SelectedSlot>();
   const [bookingToCancel, setBookingToCancel] = useState<BookingDto>();
   const [cancelPending, setCancelPending] = useState(false);
-  const selectedRoom = rooms.find((room) => room.id === roomId) ?? rooms[0];
+  const filteredRooms = useMemo(
+    () => rooms.filter((room) => room.capacity >= minCapacity),
+    [minCapacity, rooms],
+  );
+  const selectedRoom =
+    filteredRooms.find((room) => room.id === roomId) ?? filteredRooms[0];
+  const touchStart = useRef<{ x: number; y: number } | undefined>(undefined);
 
   useEffect(() => {
     if (!roomId) return;
@@ -93,24 +110,74 @@ export function ScheduleClient({
     return () => controller.abort();
   }, [roomId, weekStart, refreshKey]);
 
-  function updateLocation(nextRoomId: string, nextWeek: string) {
+  function updateLocation(
+    nextRoomId: string,
+    nextWeek: string,
+    nextDay = selectedDay,
+    nextCapacity = minCapacity,
+  ) {
     setRoomId(nextRoomId);
     setWeekStart(nextWeek);
-    router.replace(`/schedule?room=${nextRoomId}&week=${nextWeek}`, { scroll: false });
+    setSelectedDay(nextDay);
+    setMinCapacity(nextCapacity);
+    const params = new URLSearchParams({
+      room: nextRoomId,
+      week: nextWeek,
+      day: nextDay,
+    });
+    if (nextCapacity > 0) params.set("capacity", String(nextCapacity));
+    router.replace(`/schedule?${params.toString()}`, { scroll: false });
+  }
+
+  function changeCapacity(nextCapacity: number) {
+    const nextRoom = rooms.find((room) => room.capacity >= nextCapacity);
+    updateLocation(
+      rooms.some((room) => room.id === roomId && room.capacity >= nextCapacity)
+        ? roomId
+        : (nextRoom?.id ?? ""),
+      weekStart,
+      selectedDay,
+      nextCapacity,
+    );
   }
 
   function moveWeek(amount: number) {
     const nextWeek = DateTime.fromISO(weekStart, { zone: OFFICE_TIME_ZONE })
       .plus({ weeks: amount })
       .toISODate()!;
-    updateLocation(roomId, nextWeek);
+    updateLocation(roomId, nextWeek, nextWeek);
+  }
+
+  function moveDay(amount: number) {
+    const nextDay = DateTime.fromISO(selectedDay, { zone: OFFICE_TIME_ZONE })
+      .plus({ days: amount })
+      .toISODate()!;
+    const nextWeek = DateTime.fromISO(nextDay, { zone: OFFICE_TIME_ZONE })
+      .startOf("week")
+      .toISODate()!;
+    updateLocation(roomId, nextWeek, nextDay);
   }
 
   function goToday() {
-    updateLocation(
-      roomId,
-      DateTime.now().setZone(OFFICE_TIME_ZONE).startOf("week").toISODate()!,
-    );
+    const today = DateTime.now().setZone(OFFICE_TIME_ZONE);
+    updateLocation(roomId, today.startOf("week").toISODate()!, today.toISODate()!);
+  }
+
+  function startSwipe(event: TouchEvent<HTMLDivElement>) {
+    const touch = event.touches[0];
+    touchStart.current = { x: touch.clientX, y: touch.clientY };
+  }
+
+  function endSwipe(event: TouchEvent<HTMLDivElement>) {
+    const start = touchStart.current;
+    touchStart.current = undefined;
+    if (!start || !isMobile) return;
+    const touch = event.changedTouches[0];
+    const horizontal = touch.clientX - start.x;
+    const vertical = touch.clientY - start.y;
+    if (Math.abs(horizontal) > 60 && Math.abs(horizontal) > Math.abs(vertical)) {
+      moveDay(horizontal < 0 ? 1 : -1);
+    }
   }
 
   async function cancelBooking(scope: "occurrence" | "series") {
@@ -141,13 +208,13 @@ export function ScheduleClient({
       .startOf("week")
       .toISODate()!;
     setSelectedSlot(undefined);
-    updateLocation(nextRoomId, nextWeek);
+    updateLocation(nextRoomId, nextWeek, officeDate);
     setRefreshKey((value) => value + 1);
   }
 
   if (!selectedRoom) {
     return (
-      <EmptyRooms />
+      <EmptyRooms filtered={minCapacity > 0} onReset={() => changeCapacity(0)} />
     );
   }
 
@@ -161,6 +228,21 @@ export function ScheduleClient({
           </h1>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <label className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-600 shadow-sm">
+            <SlidersHorizontal className="size-4 text-indigo-500" />
+            <span className="sr-only sm:not-sr-only">Minimum capacity</span>
+            <select
+              aria-label="Minimum room capacity"
+              value={minCapacity}
+              onChange={(event) => changeCapacity(Number(event.target.value))}
+              className="bg-transparent font-semibold text-slate-700 outline-none"
+            >
+              <option value={0}>Any size</option>
+              {[4, 6, 8, 10, 12, 16].map((capacity) => (
+                <option key={capacity} value={capacity}>{capacity}+ people</option>
+              ))}
+            </select>
+          </label>
           <span className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 shadow-sm">
             <Globe2 className="size-4 text-indigo-500" />
             {userZone ?? "Detecting timezone…"}
@@ -180,13 +262,30 @@ export function ScheduleClient({
         </div>
       </div>
 
-      <div className="mt-6 grid gap-5 lg:grid-cols-[240px_minmax(0,1fr)]">
-        <aside className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm lg:self-start">
+      <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm md:hidden">
+        <label className="block text-xs font-bold uppercase tracking-[0.14em] text-slate-400">
+          Meeting room
+          <select
+            value={roomId}
+            onChange={(event) => updateLocation(event.target.value, weekStart)}
+            className="mt-2 h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-base font-semibold normal-case tracking-normal text-slate-900 outline-none focus:border-indigo-500"
+          >
+            {filteredRooms.map((room) => (
+              <option key={room.id} value={room.id}>
+                {room.name} · floor {room.floor} · {room.capacity} people
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <div className="mt-4 grid gap-5 md:mt-6 lg:grid-cols-[240px_minmax(0,1fr)]">
+        <aside className="hidden rounded-2xl border border-slate-200 bg-white p-3 shadow-sm md:block lg:self-start">
           <p className="px-2 pb-2 pt-1 text-xs font-bold uppercase tracking-[0.16em] text-slate-400">
             Meeting rooms
           </p>
           <div className="space-y-1">
-            {rooms.map((room) => {
+            {filteredRooms.map((room) => {
               const active = room.id === roomId;
               return (
                 <button
@@ -218,14 +317,19 @@ export function ScheduleClient({
           <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 px-4 py-3">
             <div>
               <p className="font-semibold text-slate-950">{selectedRoom.name}</p>
-              <p className="text-xs text-slate-400">Office timezone: {OFFICE_TIME_ZONE}</p>
+              <p className="text-xs text-slate-400">
+                {isMobile
+                  ? `${DateTime.fromISO(selectedDay, { zone: OFFICE_TIME_ZONE }).toFormat("cccc, LLLL d")} · `
+                  : ""}
+                Office timezone: {OFFICE_TIME_ZONE}
+              </p>
             </div>
             <div className="ml-auto flex items-center gap-1">
               <button
                 type="button"
-                onClick={() => moveWeek(-1)}
+                onClick={() => (isMobile ? moveDay(-1) : moveWeek(-1))}
                 className="grid size-9 place-items-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-950"
-                aria-label="Previous week"
+                aria-label={isMobile ? "Previous day" : "Previous week"}
               >
                 <ChevronLeft className="size-5" />
               </button>
@@ -238,9 +342,9 @@ export function ScheduleClient({
               </button>
               <button
                 type="button"
-                onClick={() => moveWeek(1)}
+                onClick={() => (isMobile ? moveDay(1) : moveWeek(1))}
                 className="grid size-9 place-items-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-950"
-                aria-label="Next week"
+                aria-label={isMobile ? "Next day" : "Next week"}
               >
                 <ChevronRight className="size-5" />
               </button>
@@ -260,9 +364,14 @@ export function ScheduleClient({
             </div>
           )}
 
-          <div className="overflow-x-auto">
+          <div
+            className={isMobile ? "overflow-hidden" : "overflow-x-auto"}
+            onTouchStart={startSwipe}
+            onTouchEnd={endSwipe}
+          >
             <CalendarGrid
               weekStart={weekStart}
+              mobileDay={isMobile ? selectedDay : undefined}
               userZone={userZone ?? "UTC"}
               bookings={bookings}
               loading={loading}
@@ -276,7 +385,7 @@ export function ScheduleClient({
       {selectedSlot && userZone && (
         <BookingDialog
           key={`${selectedSlot.officeDate}-${selectedSlot.startTime}`}
-          rooms={rooms}
+          rooms={filteredRooms}
           initialRoomId={roomId}
           slot={selectedSlot}
           userZone={userZone}
@@ -298,6 +407,7 @@ export function ScheduleClient({
 
 function CalendarGrid({
   weekStart,
+  mobileDay,
   userZone,
   bookings,
   loading,
@@ -305,6 +415,7 @@ function CalendarGrid({
   onCancel,
 }: {
   weekStart: string;
+  mobileDay?: string;
   userZone: string;
   bookings: BookingDto[];
   loading: boolean;
@@ -312,7 +423,10 @@ function CalendarGrid({
   onCancel: (booking: BookingDto) => void;
 }) {
   const officeWeek = DateTime.fromISO(weekStart, { zone: OFFICE_TIME_ZONE });
-  const days = Array.from({ length: 7 }, (_, index) => officeWeek.plus({ days: index }));
+  const days = mobileDay
+    ? [DateTime.fromISO(mobileDay, { zone: OFFICE_TIME_ZONE })]
+    : Array.from({ length: 7 }, (_, index) => officeWeek.plus({ days: index }));
+  const gridStart = days[0].startOf("day");
   const slots = Array.from({ length: 20 }, (_, index) => {
     const minutes = OFFICE_START_HOUR * 60 + index * SLOT_MINUTES;
     return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
@@ -328,7 +442,13 @@ function CalendarGrid({
 
   return (
     <div
-      className="relative grid min-w-[1050px] bg-slate-200 [grid-template-columns:72px_repeat(7,minmax(138px,1fr))] [grid-template-rows:68px_repeat(20,44px)] gap-px"
+      style={{
+        gridTemplateColumns: mobileDay
+          ? "64px minmax(0, 1fr)"
+          : "72px repeat(7, minmax(138px, 1fr))",
+        gridTemplateRows: "68px repeat(20, 48px)",
+      }}
+      className={`relative grid bg-slate-200 gap-px ${mobileDay ? "min-w-0" : "min-w-[1050px]"}`}
       aria-busy={loading}
     >
       <div className="sticky left-0 z-30 bg-white" />
@@ -397,13 +517,13 @@ function CalendarGrid({
       {bookings.map((booking) => {
         const startOffice = DateTime.fromISO(booking.startAt).setZone(OFFICE_TIME_ZONE);
         const endOffice = DateTime.fromISO(booking.endAt).setZone(OFFICE_TIME_ZONE);
-        const dayIndex = Math.floor(startOffice.startOf("day").diff(officeWeek.startOf("day"), "days").days);
+        const dayIndex = Math.floor(startOffice.startOf("day").diff(gridStart, "days").days);
         const startSlot =
           (startOffice.hour * 60 + startOffice.minute - OFFICE_START_HOUR * 60) /
           SLOT_MINUTES;
         const durationSlots = Math.max(1, endOffice.diff(startOffice, "minutes").minutes / SLOT_MINUTES);
 
-        if (dayIndex < 0 || dayIndex > 6 || startSlot < 0 || startSlot >= 20) return null;
+        if (dayIndex < 0 || dayIndex >= days.length || startSlot < 0 || startSlot >= 20) return null;
 
         return (
           <button
@@ -479,6 +599,19 @@ function BookingDialog({
     [],
   );
 
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !pending) onClose();
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [onClose, pending]);
+
   function changeStart(nextStart: string) {
     setStartTime(nextStart);
     const startMinutes = timeToMinutes(nextStart);
@@ -537,12 +670,12 @@ function BookingDialog({
   }
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/50 p-4 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 grid items-end bg-slate-950/50 p-0 backdrop-blur-sm sm:place-items-center sm:p-4">
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="booking-dialog-title"
-        className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl sm:p-7"
+        className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-white p-6 shadow-2xl sm:rounded-3xl sm:p-7"
       >
         <div className="flex items-start gap-4">
           <span className="grid size-11 place-items-center rounded-xl bg-indigo-50 text-indigo-600">
@@ -694,14 +827,31 @@ function DialogField({
   );
 }
 
-function EmptyRooms() {
+function EmptyRooms({
+  filtered,
+  onReset,
+}: {
+  filtered: boolean;
+  onReset: () => void;
+}) {
   return (
     <main className="mx-auto max-w-2xl px-4 py-24 text-center">
       <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-indigo-50 text-indigo-600">
         <CalendarPlus className="size-6" />
       </span>
-      <h1 className="mt-5 text-2xl font-semibold text-slate-950">No rooms available</h1>
-      <p className="mt-2 text-slate-500">Run the database seed to create the office rooms.</p>
+      <h1 className="mt-5 text-2xl font-semibold text-slate-950">
+        {filtered ? "No rooms match this capacity" : "No rooms available"}
+      </h1>
+      <p className="mt-2 text-slate-500">
+        {filtered
+          ? "Lower the minimum capacity to see more meeting rooms."
+          : "Run the database seed to create the office rooms."}
+      </p>
+      {filtered && (
+        <button type="button" onClick={onReset} className="mt-5 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white">
+          Show every room
+        </button>
+      )}
     </main>
   );
 }

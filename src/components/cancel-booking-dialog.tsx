@@ -1,6 +1,7 @@
 "use client";
 
 import { LoaderCircle, Repeat2, Trash2, X } from "lucide-react";
+import { useEffect } from "react";
 
 import type { BookingDto } from "@/lib/types";
 
@@ -15,13 +16,26 @@ export function CancelBookingDialog({
   onClose: () => void;
   onConfirm: (scope: "occurrence" | "series") => void;
 }) {
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !pending) onClose();
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [onClose, pending]);
+
   return (
-    <div className="fixed inset-0 z-[60] grid place-items-center bg-slate-950/50 p-4 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[60] grid items-end bg-slate-950/50 p-0 backdrop-blur-sm sm:place-items-center sm:p-4">
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="cancel-booking-title"
-        className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl"
+        className="w-full max-w-md rounded-t-3xl bg-white p-6 shadow-2xl sm:rounded-3xl"
       >
         <div className="flex items-start gap-4">
           <span className="grid size-11 place-items-center rounded-xl bg-rose-50 text-rose-600">
