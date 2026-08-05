@@ -4,6 +4,7 @@ import { CalendarRange, ListChecks } from "lucide-react";
 import { Brand } from "@/components/brand";
 import { EmailVerificationBanner } from "@/components/email-verification-banner";
 import { LogoutButton } from "@/components/logout-button";
+import { NotificationCenter } from "@/components/notification-center";
 import { requirePageUser } from "@/lib/session";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -19,6 +20,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <NavItem href="/my-bookings" icon={ListChecks} label="My bookings" />
           </nav>
           <div className="ml-auto flex items-center gap-3">
+            <NotificationCenter />
             <div className="hidden text-right md:block">
               <p className="text-sm font-semibold text-slate-800">{user.name}</p>
               <p className="text-xs text-slate-400">{user.email}</p>

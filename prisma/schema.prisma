@@ -17,6 +17,7 @@ model User {
   sessions               Session[]
   bookings               Booking[]
   bookingSeries          BookingSeries[]
+  notifications          Notification[]
   emailVerificationToken EmailVerificationToken?
 
   @@map("users")
@@ -88,9 +89,28 @@ model Booking {
   room        Room      @relation(fields: [roomId], references: [id], onDelete: Restrict)
   user        User      @relation(fields: [userId], references: [id], onDelete: Restrict)
   series      BookingSeries? @relation(fields: [seriesId], references: [id], onDelete: Restrict)
+  currentNotification Notification? @relation("CurrentBookingNotification")
+  nextNotifications   Notification[] @relation("NextBookingNotification")
 
   @@index([roomId, startAt, endAt])
   @@index([userId, startAt])
   @@unique([seriesId, occurrenceIndex])
   @@map("bookings")
+}
+
+model Notification {
+  id               String    @id @default(uuid()) @db.Uuid
+  userId           String    @map("user_id") @db.Uuid
+  currentBookingId String    @unique @map("current_booking_id") @db.Uuid
+  nextBookingId    String    @map("next_booking_id") @db.Uuid
+  deliveredAt      DateTime  @map("delivered_at") @db.Timestamptz(3)
+  readAt           DateTime? @map("read_at") @db.Timestamptz(3)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currentBooking   Booking   @relation("CurrentBookingNotification", fields: [currentBookingId], references: [id], onDelete: Restrict)
+  nextBooking      Booking   @relation("NextBookingNotification", fields: [nextBookingId], references: [id], onDelete: Restrict)
+
+  @@index([userId, deliveredAt])
+  @@index([nextBookingId])
+  @@map("notifications")
 }

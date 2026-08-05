@@ -16,3 +16,13 @@ export type BookingDto = {
   canCancel: boolean;
   series: { id: string; occurrence: number; count: number } | null;
 };
+
+export type NotificationDto = {
+  id: string;
+  currentTitle: string;
+  nextTitle: string;
+  roomName: string;
+  endAt: string;
+  deliveredAt: string;
+  readAt: string | null;
+};
