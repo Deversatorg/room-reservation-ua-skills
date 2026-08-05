@@ -51,6 +51,13 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const user = await getCurrentUser();
   if (!user) return apiError(401, "AUTH_REQUIRED", "Sign in to continue.");
+  if (!user.emailVerified) {
+    return apiError(
+      403,
+      "EMAIL_VERIFICATION_REQUIRED",
+      "Verify your email address before booking a room.",
+    );
+  }
 
   const input = await readJson(request);
   const result = createBookingSchema.safeParse(input);

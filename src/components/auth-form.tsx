@@ -38,7 +38,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
         return;
       }
 
-      router.push("/schedule");
+      router.push(isRegister ? "/verify-email" : "/schedule");
       router.refresh();
     } catch {
       setMessage("The server is unavailable. Please try again.");

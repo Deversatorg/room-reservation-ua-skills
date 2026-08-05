@@ -51,7 +51,9 @@ export async function getCurrentUser() {
     where: { tokenHash: hashToken(token) },
     select: {
       expiresAt: true,
-      user: { select: { id: true, name: true, email: true } },
+      user: {
+        select: { id: true, name: true, email: true, emailVerifiedAt: true },
+      },
     },
   });
 
@@ -62,7 +64,12 @@ export async function getCurrentUser() {
     return null;
   }
 
-  return session.user;
+  return {
+    id: session.user.id,
+    name: session.user.name,
+    email: session.user.email,
+    emailVerified: Boolean(session.user.emailVerifiedAt),
+  };
 }
 
 export async function requirePageUser() {

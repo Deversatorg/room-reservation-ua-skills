@@ -29,20 +29,22 @@ async function main() {
   const [alex, maria] = await Promise.all([
     prisma.user.upsert({
       where: { email: "alex@room.test" },
-      update: { name: "Alex Johnson", passwordHash },
+      update: { name: "Alex Johnson", passwordHash, emailVerifiedAt: new Date() },
       create: {
         name: "Alex Johnson",
         email: "alex@room.test",
         passwordHash,
+        emailVerifiedAt: new Date(),
       },
     }),
     prisma.user.upsert({
       where: { email: "maria@room.test" },
-      update: { name: "Maria Novak", passwordHash },
+      update: { name: "Maria Novak", passwordHash, emailVerifiedAt: new Date() },
       create: {
         name: "Maria Novak",
         email: "maria@room.test",
         passwordHash,
+        emailVerifiedAt: new Date(),
       },
     }),
   ]);

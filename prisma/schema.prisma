@@ -8,15 +8,28 @@ datasource db {
 }
 
 model User {
-  id           String    @id @default(uuid()) @db.Uuid
-  name         String    @db.VarChar(100)
-  email        String    @unique @db.VarChar(320)
-  passwordHash String    @map("password_hash") @db.VarChar(255)
-  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
-  sessions     Session[]
-  bookings     Booking[]
+  id                     String                  @id @default(uuid()) @db.Uuid
+  name                   String                  @db.VarChar(100)
+  email                  String                  @unique @db.VarChar(320)
+  passwordHash           String                  @map("password_hash") @db.VarChar(255)
+  emailVerifiedAt        DateTime?               @map("email_verified_at") @db.Timestamptz(3)
+  createdAt              DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
+  sessions               Session[]
+  bookings               Booking[]
+  emailVerificationToken EmailVerificationToken?
 
   @@map("users")
+}
+
+model EmailVerificationToken {
+  tokenHash String   @id @map("token_hash") @db.Char(64)
+  userId    String   @unique @map("user_id") @db.Uuid
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@map("email_verification_tokens")
 }
 
 model Session {

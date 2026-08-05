@@ -2,6 +2,7 @@ import Link from "next/link";
 import { CalendarRange, ListChecks } from "lucide-react";
 
 import { Brand } from "@/components/brand";
+import { EmailVerificationBanner } from "@/components/email-verification-banner";
 import { LogoutButton } from "@/components/logout-button";
 import { requirePageUser } from "@/lib/session";
 
@@ -33,6 +34,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <NavItem href="/my-bookings" icon={ListChecks} label="My bookings" />
         </nav>
       </header>
+      {!user.emailVerified && <EmailVerificationBanner />}
       {children}
     </div>
   );

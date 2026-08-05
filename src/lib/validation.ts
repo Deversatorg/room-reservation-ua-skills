@@ -27,6 +27,10 @@ export const loginSchema = z.object({
   password: z.string().min(1, "Password is required.").max(72),
 });
 
+export const verifyEmailSchema = z.object({
+  token: z.string().trim().min(32, "The verification link is invalid.").max(200),
+});
+
 export const createBookingSchema = z.object({
   roomId: z.string().uuid("Choose a valid meeting room."),
   title: z

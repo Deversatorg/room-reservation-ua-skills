@@ -3,6 +3,10 @@ import argon2 from "argon2";
 import { Prisma } from "@/generated/prisma/client";
 import { apiError, readJson, zodError } from "@/lib/api";
 import { db } from "@/lib/db";
+import {
+  createEmailVerificationToken,
+  logEmailVerificationLink,
+} from "@/lib/email-verification";
 import { createSession } from "@/lib/session";
 import { registerSchema } from "@/lib/validation";
 
@@ -15,13 +19,28 @@ export async function POST(request: Request) {
 
   try {
     const passwordHash = await argon2.hash(password, { type: argon2.argon2id });
-    const user = await db.user.create({
-      data: { name, email, passwordHash },
-      select: { id: true, name: true, email: true },
+    const verification = createEmailVerificationToken();
+    const user = await db.$transaction(async (transaction) => {
+      const createdUser = await transaction.user.create({
+        data: { name, email, passwordHash },
+        select: { id: true, name: true, email: true },
+      });
+      await transaction.emailVerificationToken.create({
+        data: {
+          userId: createdUser.id,
+          tokenHash: verification.tokenHash,
+          expiresAt: verification.expiresAt,
+        },
+      });
+      return createdUser;
     });
 
     await createSession(user.id);
-    return Response.json({ user }, { status: 201 });
+    logEmailVerificationLink(request.url, verification.token);
+    return Response.json(
+      { user: { ...user, emailVerified: false } },
+      { status: 201 },
+    );
   } catch (error) {
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&

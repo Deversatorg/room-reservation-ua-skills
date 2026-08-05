@@ -19,6 +19,9 @@ services:
     build: .
     environment:
       DATABASE_URL: postgresql://roomly:roomly@db:5432/roomly?schema=public
+      DIRECT_DATABASE_URL: postgresql://roomly:roomly@db:5432/roomly?schema=public
+      EMAIL_VERIFICATION_MODE: log
+      NOTIFY_BEFORE_MINUTES: 10
       NODE_ENV: production
     ports:
       - "3000:3000"
