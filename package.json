@@ -11,6 +11,9 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
+    "test:integration": "tsx scripts/run-playwright.ts tests/api",
+    "test:e2e": "tsx scripts/run-playwright.ts tests/e2e",
+    "test:browser": "tsx scripts/run-playwright.ts tests",
     "test:race": "tsx scripts/verify-race.ts",
     "test:watch": "vitest",
     "db:generate": "prisma generate",
@@ -34,6 +37,8 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "^4",
     "@types/luxon": "^3.7.3",
     "@types/node": "^20",

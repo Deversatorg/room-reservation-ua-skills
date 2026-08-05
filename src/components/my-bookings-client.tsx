@@ -170,7 +170,7 @@ export function MyBookingsClient() {
       </div>
 
       {error && (
-        <div className="mt-5 flex items-center gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+        <div role="alert" aria-live="assertive" className="mt-5 flex items-center gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
           <span>{error}</span>
           <button
             type="button"
@@ -315,7 +315,7 @@ function TabButton({
       }`}
     >
       {label}
-      <span className={`text-xs ${active ? "text-indigo-200" : "text-slate-400"}`}>{count}</span>
+      <span className={`text-xs ${active ? "text-indigo-50" : "text-slate-600"}`}>{count}</span>
     </button>
   );
 }

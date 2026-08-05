@@ -23,7 +23,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <NotificationCenter />
             <div className="hidden text-right md:block">
               <p className="text-sm font-semibold text-slate-800">{user.name}</p>
-              <p className="text-xs text-slate-400">{user.email}</p>
+              <p className="text-xs text-slate-600">{user.email}</p>
             </div>
             <span className="grid size-10 place-items-center rounded-xl bg-indigo-50 text-sm font-bold text-indigo-700">
               {user.name.slice(0, 1).toUpperCase()}

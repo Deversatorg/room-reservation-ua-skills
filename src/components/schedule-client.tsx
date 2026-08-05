@@ -33,6 +33,7 @@ import {
   SLOT_MINUTES,
 } from "@/lib/booking-rules";
 import { CancelBookingDialog } from "@/components/cancel-booking-dialog";
+import { useAccessibleDialog } from "@/hooks/use-accessible-dialog";
 import { useUserTimeZone } from "@/hooks/use-user-time-zone";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import type { BookingDto, RoomDto } from "@/lib/types";
@@ -64,6 +65,7 @@ export function ScheduleClient({
   const [loadError, setLoadError] = useState<string>();
   const [refreshKey, setRefreshKey] = useState(0);
   const [selectedSlot, setSelectedSlot] = useState<SelectedSlot>();
+  const [bookingTrigger, setBookingTrigger] = useState<HTMLElement | null>(null);
   const [bookingToCancel, setBookingToCancel] = useState<BookingDto>();
   const [cancelPending, setCancelPending] = useState(false);
   const filteredRooms = useMemo(
@@ -212,6 +214,13 @@ export function ScheduleClient({
     setRefreshKey((value) => value + 1);
   }
 
+  function openBooking(slot: SelectedSlot) {
+    setBookingTrigger(
+      document.activeElement instanceof HTMLElement ? document.activeElement : null,
+    );
+    setSelectedSlot(slot);
+  }
+
   if (!selectedRoom) {
     return (
       <EmptyRooms filtered={minCapacity > 0} onReset={() => changeCapacity(0)} />
@@ -250,7 +259,7 @@ export function ScheduleClient({
           <button
             type="button"
             onClick={() =>
-              setSelectedSlot({
+              openBooking({
                 officeDate: DateTime.now().setZone(OFFICE_TIME_ZONE).toISODate()!,
                 startTime: "09:00",
               })
@@ -263,7 +272,7 @@ export function ScheduleClient({
       </div>
 
       <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm md:hidden">
-        <label className="block text-xs font-bold uppercase tracking-[0.14em] text-slate-400">
+        <label className="block text-xs font-bold uppercase tracking-[0.14em] text-slate-600">
           Meeting room
           <select
             value={roomId}
@@ -281,7 +290,7 @@ export function ScheduleClient({
 
       <div className="mt-4 grid gap-5 md:mt-6 lg:grid-cols-[240px_minmax(0,1fr)]">
         <aside className="hidden rounded-2xl border border-slate-200 bg-white p-3 shadow-sm md:block lg:self-start">
-          <p className="px-2 pb-2 pt-1 text-xs font-bold uppercase tracking-[0.16em] text-slate-400">
+          <p className="px-2 pb-2 pt-1 text-xs font-bold uppercase tracking-[0.16em] text-slate-600">
             Meeting rooms
           </p>
           <div className="space-y-1">
@@ -299,7 +308,7 @@ export function ScheduleClient({
                   }`}
                 >
                   <span className="block font-semibold">{room.name}</span>
-                  <span className="mt-1 flex items-center gap-3 text-xs text-slate-400">
+                  <span className="mt-1 flex items-center gap-3 text-xs text-slate-600">
                     <span className="inline-flex items-center gap-1">
                       <MapPin className="size-3" /> Floor {room.floor}
                     </span>
@@ -317,7 +326,7 @@ export function ScheduleClient({
           <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 px-4 py-3">
             <div>
               <p className="font-semibold text-slate-950">{selectedRoom.name}</p>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-slate-600">
                 {isMobile
                   ? `${DateTime.fromISO(selectedDay, { zone: OFFICE_TIME_ZONE }).toFormat("cccc, LLLL d")} · `
                   : ""}
@@ -352,7 +361,7 @@ export function ScheduleClient({
           </div>
 
           {loadError && (
-            <div className="m-4 flex items-center gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            <div role="alert" aria-live="assertive" className="m-4 flex items-center gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
               <span>{loadError}</span>
               <button
                 type="button"
@@ -366,6 +375,9 @@ export function ScheduleClient({
 
           <div
             className={isMobile ? "overflow-hidden" : "overflow-x-auto"}
+            role="region"
+            aria-label={isMobile ? "Daily meeting room calendar" : "Weekly meeting room calendar"}
+            tabIndex={isMobile ? undefined : 0}
             onTouchStart={startSwipe}
             onTouchEnd={endSwipe}
           >
@@ -375,7 +387,7 @@ export function ScheduleClient({
               userZone={userZone ?? "UTC"}
               bookings={bookings}
               loading={loading}
-              onSelect={setSelectedSlot}
+              onSelect={openBooking}
               onCancel={setBookingToCancel}
             />
           </div>
@@ -389,6 +401,7 @@ export function ScheduleClient({
           initialRoomId={roomId}
           slot={selectedSlot}
           userZone={userZone}
+          returnFocus={bookingTrigger}
           onClose={() => setSelectedSlot(undefined)}
           onCreated={handleCreated}
         />
@@ -479,7 +492,7 @@ function CalendarGrid({
           <div key={time} className="contents">
             <div
               style={{ gridColumn: 1, gridRow: slotIndex + 2 }}
-              className="sticky left-0 z-20 flex items-start justify-end bg-white pr-3 pt-1 text-[11px] font-medium text-slate-400"
+              className="sticky left-0 z-20 flex items-start justify-end bg-white pr-3 pt-1 text-[11px] font-medium text-slate-600"
             >
               {localTime}
             </div>
@@ -571,6 +584,7 @@ function BookingDialog({
   initialRoomId,
   slot,
   userZone,
+  returnFocus,
   onClose,
   onCreated,
 }: {
@@ -578,6 +592,7 @@ function BookingDialog({
   initialRoomId: string;
   slot: SelectedSlot;
   userZone: string;
+  returnFocus: HTMLElement | null;
   onClose: () => void;
   onCreated: (roomId: string, officeDate: string) => void;
 }) {
@@ -590,6 +605,8 @@ function BookingDialog({
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [repeatWeekly, setRepeatWeekly] = useState(false);
   const [occurrenceCount, setOccurrenceCount] = useState(8);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useAccessibleDialog(dialogRef, onClose, pending, returnFocus);
   const timeOptions = useMemo(
     () =>
       Array.from({ length: 21 }, (_, index) => {
@@ -598,19 +615,6 @@ function BookingDialog({
       }),
     [],
   );
-
-  useEffect(() => {
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !pending) onClose();
-    };
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [onClose, pending]);
 
   function changeStart(nextStart: string) {
     setStartTime(nextStart);
@@ -672,6 +676,7 @@ function BookingDialog({
   return (
     <div className="fixed inset-0 z-50 grid items-end bg-slate-950/50 p-0 backdrop-blur-sm sm:place-items-center sm:p-4">
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="booking-dialog-title"
@@ -690,7 +695,7 @@ function BookingDialog({
           <button
             type="button"
             onClick={onClose}
-            className="ml-auto grid size-9 place-items-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+            className="ml-auto grid size-9 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700"
             aria-label="Close"
           >
             <X className="size-5" />
@@ -702,6 +707,7 @@ function BookingDialog({
             <input
               name="title"
               autoFocus
+              data-dialog-initial-focus
               maxLength={100}
               placeholder="e.g. Weekly product sync"
               className={inputClass}

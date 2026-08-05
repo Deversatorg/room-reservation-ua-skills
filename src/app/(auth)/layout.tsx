@@ -28,7 +28,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           </div>
         </div>
 
-        <p className="relative text-sm text-slate-500">UA-Skills · event2</p>
+        <p className="relative text-sm text-slate-400">UA-Skills · event2</p>
       </section>
 
       <section className="flex items-center justify-center px-5 py-10 sm:px-10">

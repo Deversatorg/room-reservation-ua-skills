@@ -100,13 +100,13 @@ export function NotificationCenter() {
           <div className="flex items-center border-b border-slate-100 px-4 py-3">
             <div>
               <p className="font-semibold text-slate-950">Notifications</p>
-              <p className="text-xs text-slate-400">Meeting handoff reminders</p>
+              <p className="text-xs text-slate-600">Meeting handoff reminders</p>
             </div>
             <CheckCheck className="ml-auto size-4 text-indigo-500" />
           </div>
           <div className="max-h-96 overflow-y-auto p-2">
             {notifications.length === 0 ? (
-              <p className="px-4 py-10 text-center text-sm text-slate-400">No notifications yet.</p>
+              <p className="px-4 py-10 text-center text-sm text-slate-600">No notifications yet.</p>
             ) : (
               notifications.map((notification) => (
                 <NotificationItem key={notification.id} notification={notification} />
@@ -129,7 +129,7 @@ export function NotificationCenter() {
                   {notification.roomName} is booked next for “{notification.nextTitle}”.
                 </p>
               </div>
-              <button type="button" onClick={() => setToasts((current) => current.filter((item) => item.id !== notification.id))} aria-label="Dismiss notification" className="grid size-8 place-items-center text-slate-400">
+              <button type="button" onClick={() => setToasts((current) => current.filter((item) => item.id !== notification.id))} aria-label="Dismiss notification" className="grid size-8 place-items-center text-slate-500">
                 <X className="size-4" />
               </button>
             </div>

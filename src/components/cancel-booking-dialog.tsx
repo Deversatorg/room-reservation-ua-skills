@@ -1,8 +1,9 @@
 "use client";
 
 import { LoaderCircle, Repeat2, Trash2, X } from "lucide-react";
-import { useEffect } from "react";
+import { useRef } from "react";
 
+import { useAccessibleDialog } from "@/hooks/use-accessible-dialog";
 import type { BookingDto } from "@/lib/types";
 
 export function CancelBookingDialog({
@@ -16,22 +17,13 @@ export function CancelBookingDialog({
   onClose: () => void;
   onConfirm: (scope: "occurrence" | "series") => void;
 }) {
-  useEffect(() => {
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !pending) onClose();
-    };
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [onClose, pending]);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useAccessibleDialog(dialogRef, onClose, pending);
 
   return (
     <div className="fixed inset-0 z-[60] grid items-end bg-slate-950/50 p-0 backdrop-blur-sm sm:place-items-center sm:p-4">
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="cancel-booking-title"
@@ -47,7 +39,7 @@ export function CancelBookingDialog({
             </h2>
             <p className="mt-1 truncate text-sm text-slate-500">{booking.title}</p>
           </div>
-          <button type="button" onClick={onClose} disabled={pending} aria-label="Close" className="grid size-9 place-items-center rounded-lg text-slate-400 hover:bg-slate-100">
+          <button type="button" onClick={onClose} disabled={pending} aria-label="Close" className="grid size-9 place-items-center rounded-lg text-slate-500 hover:bg-slate-100">
             <X className="size-5" />
           </button>
         </div>
@@ -78,7 +70,7 @@ export function CancelBookingDialog({
               <Repeat2 className="size-4" /> Cancel all future occurrences
             </button>
           )}
-          <button type="button" onClick={onClose} disabled={pending} className="h-10 rounded-xl text-sm font-semibold text-slate-500 hover:bg-slate-50">
+          <button type="button" onClick={onClose} disabled={pending} data-dialog-initial-focus className="h-10 rounded-xl text-sm font-semibold text-slate-500 hover:bg-slate-50">
             Keep booking
           </button>
         </div>
