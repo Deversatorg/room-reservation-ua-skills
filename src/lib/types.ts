@@ -14,4 +14,5 @@ export type BookingDto = {
   author: { id: string; name: string };
   room: { name: string; floor: number; capacity: number };
   canCancel: boolean;
+  series: { id: string; occurrence: number; count: number } | null;
 };

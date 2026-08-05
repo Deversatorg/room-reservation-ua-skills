@@ -10,6 +10,7 @@ import {
   LoaderCircle,
   MapPin,
   Plus,
+  Repeat2,
   RefreshCw,
   Users,
   X,
@@ -28,6 +29,7 @@ import {
   OFFICE_TIME_ZONE,
   SLOT_MINUTES,
 } from "@/lib/booking-rules";
+import { CancelBookingDialog } from "@/components/cancel-booking-dialog";
 import { useUserTimeZone } from "@/hooks/use-user-time-zone";
 import type { BookingDto, RoomDto } from "@/lib/types";
 
@@ -51,6 +53,8 @@ export function ScheduleClient({
   const [loadError, setLoadError] = useState<string>();
   const [refreshKey, setRefreshKey] = useState(0);
   const [selectedSlot, setSelectedSlot] = useState<SelectedSlot>();
+  const [bookingToCancel, setBookingToCancel] = useState<BookingDto>();
+  const [cancelPending, setCancelPending] = useState(false);
   const selectedRoom = rooms.find((room) => room.id === roomId) ?? rooms[0];
 
   useEffect(() => {
@@ -109,18 +113,27 @@ export function ScheduleClient({
     );
   }
 
-  async function cancelBooking(booking: BookingDto) {
-    if (!booking.canCancel) return;
-    if (!window.confirm(`Cancel “${booking.title}”?`)) return;
+  async function cancelBooking(scope: "occurrence" | "series") {
+    if (!bookingToCancel) return;
+    setCancelPending(true);
+    try {
+      const response = await fetch(
+        `/api/bookings/${bookingToCancel.id}?scope=${scope}`,
+        { method: "DELETE" },
+      );
+      if (!response.ok) {
+        const data = (await response.json()) as { error?: { message?: string } };
+        window.alert(data.error?.message ?? "Could not cancel the booking.");
+        return;
+      }
 
-    const response = await fetch(`/api/bookings/${booking.id}`, { method: "DELETE" });
-    if (!response.ok) {
-      const data = (await response.json()) as { error?: { message?: string } };
-      window.alert(data.error?.message ?? "Could not cancel the booking.");
-      return;
+      setBookingToCancel(undefined);
+      setRefreshKey((value) => value + 1);
+    } catch {
+      window.alert("The server is unavailable. Please try again.");
+    } finally {
+      setCancelPending(false);
     }
-
-    setRefreshKey((value) => value + 1);
   }
 
   function handleCreated(nextRoomId: string, officeDate: string) {
@@ -254,7 +267,7 @@ export function ScheduleClient({
               bookings={bookings}
               loading={loading}
               onSelect={setSelectedSlot}
-              onCancel={cancelBooking}
+              onCancel={setBookingToCancel}
             />
           </div>
         </section>
@@ -269,6 +282,14 @@ export function ScheduleClient({
           userZone={userZone}
           onClose={() => setSelectedSlot(undefined)}
           onCreated={handleCreated}
+        />
+      )}
+      {bookingToCancel && (
+        <CancelBookingDialog
+          booking={bookingToCancel}
+          pending={cancelPending}
+          onClose={() => setBookingToCancel(undefined)}
+          onConfirm={(scope) => void cancelBooking(scope)}
         />
       )}
     </main>
@@ -405,6 +426,11 @@ function CalendarGrid({
               {DateTime.fromISO(booking.startAt).setZone(userZone).toFormat("HH:mm")} ·{" "}
               {booking.author.name}
             </span>
+            {booking.series && (
+              <span className="mt-0.5 block truncate text-[10px] font-semibold opacity-70">
+                Weekly · {booking.series.occurrence}/{booking.series.count}
+              </span>
+            )}
           </button>
         );
       })}
@@ -442,6 +468,8 @@ function BookingDialog({
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<string>();
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
+  const [repeatWeekly, setRepeatWeekly] = useState(false);
+  const [occurrenceCount, setOccurrenceCount] = useState(8);
   const timeOptions = useMemo(
     () =>
       Array.from({ length: 21 }, (_, index) => {
@@ -480,7 +508,15 @@ function BookingDialog({
       const response = await fetch("/api/bookings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ roomId, title: form.get("title"), startAt, endAt }),
+        body: JSON.stringify({
+          roomId,
+          title: form.get("title"),
+          startAt,
+          endAt,
+          recurrence: repeatWeekly
+            ? { kind: "weekly", count: occurrenceCount }
+            : undefined,
+        }),
       });
       const data = (await response.json()) as {
         error?: { message?: string; fieldErrors?: Record<string, string[]> };
@@ -578,6 +614,32 @@ function BookingDialog({
                 ))}
               </select>
             </DialogField>
+          </div>
+
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <label className="flex cursor-pointer items-center gap-3 text-sm font-semibold text-slate-700">
+              <input
+                type="checkbox"
+                checked={repeatWeekly}
+                onChange={(event) => setRepeatWeekly(event.target.checked)}
+                className="size-4 rounded border-slate-300 text-indigo-600"
+              />
+              <Repeat2 className="size-4 text-indigo-500" /> Repeat weekly
+            </label>
+            {repeatWeekly && (
+              <label className="mt-3 flex items-center justify-between gap-4 text-sm text-slate-600">
+                Number of occurrences
+                <select
+                  value={occurrenceCount}
+                  onChange={(event) => setOccurrenceCount(Number(event.target.value))}
+                  className="h-10 rounded-lg border border-slate-200 bg-white px-3 font-semibold text-slate-800"
+                >
+                  {Array.from({ length: 11 }, (_, index) => index + 2).map((count) => (
+                    <option key={count} value={count}>{count}</option>
+                  ))}
+                </select>
+              </label>
+            )}
           </div>
 
           <div className="flex items-start gap-2 rounded-xl bg-slate-50 px-3 py-2.5 text-xs leading-5 text-slate-500">

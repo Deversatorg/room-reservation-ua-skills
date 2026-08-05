@@ -7,6 +7,9 @@ type BookingRecord = {
   title: string;
   startAt: Date;
   endAt: Date;
+  seriesId: string | null;
+  occurrenceIndex: number | null;
+  series: { id: string; occurrenceCount: number } | null;
   room: { name: string; floor: number; capacity: number };
   user: { id: string; name: string };
 };
@@ -21,10 +24,18 @@ export function bookingDto(booking: BookingRecord, currentUserId: string) {
     author: booking.user,
     room: booking.room,
     canCancel: booking.userId === currentUserId,
+    series: booking.series
+      ? {
+          id: booking.series.id,
+          occurrence: (booking.occurrenceIndex ?? 0) + 1,
+          count: booking.series.occurrenceCount,
+        }
+      : null,
   };
 }
 
 export const bookingInclude = {
   room: { select: { name: true, floor: true, capacity: true } },
   user: { select: { id: true, name: true } },
+  series: { select: { id: true, occurrenceCount: true } },
 } as const;

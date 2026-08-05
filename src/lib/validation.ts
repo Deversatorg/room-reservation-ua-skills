@@ -40,6 +40,12 @@ export const createBookingSchema = z.object({
     .max(100, "Booking title must contain at most 100 characters."),
   startAt: z.string().datetime({ offset: true }),
   endAt: z.string().datetime({ offset: true }),
+  recurrence: z
+    .object({
+      kind: z.literal("weekly"),
+      count: z.number().int().min(2).max(12),
+    })
+    .optional(),
 });
 
 export const bookingRangeSchema = z.object({

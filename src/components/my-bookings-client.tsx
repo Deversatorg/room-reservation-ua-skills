@@ -10,6 +10,7 @@ import {
   LoaderCircle,
   MapPin,
   RefreshCw,
+  Repeat2,
   Trash2,
 } from "lucide-react";
 import Link from "next/link";
@@ -18,6 +19,7 @@ import { useEffect, useState } from "react";
 import { useUserTimeZone } from "@/hooks/use-user-time-zone";
 import { OFFICE_TIME_ZONE } from "@/lib/booking-rules";
 import type { BookingDto } from "@/lib/types";
+import { CancelBookingDialog } from "@/components/cancel-booking-dialog";
 
 type BookingPage = {
   bookings: BookingDto[];
@@ -34,6 +36,8 @@ export function MyBookingsClient() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string>();
   const [refreshKey, setRefreshKey] = useState(0);
+  const [bookingToCancel, setBookingToCancel] = useState<BookingDto>();
+  const [cancelPending, setCancelPending] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -100,17 +104,34 @@ export function MyBookingsClient() {
     }
   }
 
-  async function cancelBooking(booking: BookingDto) {
-    if (!window.confirm(`Cancel “${booking.title}”?`)) return;
+  async function cancelBooking(scope: "occurrence" | "series") {
+    if (!bookingToCancel) return;
+    setCancelPending(true);
+    try {
+      const response = await fetch(
+        `/api/bookings/${bookingToCancel.id}?scope=${scope}`,
+        { method: "DELETE" },
+      );
+      if (!response.ok) {
+        const data = (await response.json()) as { error?: { message?: string } };
+        setError(data.error?.message ?? "Could not cancel the booking.");
+        return;
+      }
 
-    const response = await fetch(`/api/bookings/${booking.id}`, { method: "DELETE" });
-    if (!response.ok) {
-      const data = (await response.json()) as { error?: { message?: string } };
-      setError(data.error?.message ?? "Could not cancel the booking.");
-      return;
+      const seriesId = bookingToCancel.series?.id;
+      setUpcoming((current) =>
+        current.filter((item) =>
+          scope === "series" && seriesId
+            ? item.series?.id !== seriesId
+            : item.id !== bookingToCancel.id,
+        ),
+      );
+      setBookingToCancel(undefined);
+    } catch {
+      setError("The server is unavailable. Please try again.");
+    } finally {
+      setCancelPending(false);
     }
-
-    setUpcoming((current) => current.filter((item) => item.id !== booking.id));
   }
 
   const visibleBookings = activeTab === "upcoming" ? upcoming : past;
@@ -173,7 +194,7 @@ export function MyBookingsClient() {
               booking={booking}
               userZone={userZone ?? "UTC"}
               showCancel={activeTab === "upcoming"}
-              onCancel={cancelBooking}
+              onCancel={setBookingToCancel}
             />
           ))
         )}
@@ -191,6 +212,14 @@ export function MyBookingsClient() {
             Load more
           </button>
         </div>
+      )}
+      {bookingToCancel && (
+        <CancelBookingDialog
+          booking={bookingToCancel}
+          pending={cancelPending}
+          onClose={() => setBookingToCancel(undefined)}
+          onConfirm={(scope) => void cancelBooking(scope)}
+        />
       )}
     </main>
   );
@@ -226,6 +255,11 @@ function BookingRow({
         <h2 className="truncate font-semibold text-slate-950 group-hover:text-indigo-700">
           {booking.title}
         </h2>
+        {booking.series && (
+          <span className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-indigo-600">
+            <Repeat2 className="size-3" /> Weekly · {booking.series.occurrence} of {booking.series.count}
+          </span>
+        )}
         <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-sm text-slate-500">
           <span className="inline-flex items-center gap-1.5">
             <Clock3 className="size-4 text-slate-400" />

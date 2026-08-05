@@ -102,6 +102,47 @@ async function main() {
     }
   }
 
+  let weeklySeries = await prisma.bookingSeries.findFirst({
+    where: {
+      userId: alex.id,
+      roomId: seededRooms[2].id,
+      title: "Demo: Weekly planning",
+    },
+  });
+  if (!weeklySeries) {
+    weeklySeries = await prisma.bookingSeries.create({
+      data: {
+        userId: alex.id,
+        roomId: seededRooms[2].id,
+        title: "Demo: Weekly planning",
+        kind: "WEEKLY",
+        occurrenceCount: 3,
+      },
+    });
+  }
+
+  for (let index = 0; index < weeklySeries.occurrenceCount; index += 1) {
+    const startAt = nextMonday.plus({ weeks: index, hours: 15, minutes: 30 });
+    await prisma.booking.upsert({
+      where: {
+        seriesId_occurrenceIndex: {
+          seriesId: weeklySeries.id,
+          occurrenceIndex: index,
+        },
+      },
+      update: { cancelledAt: null },
+      create: {
+        roomId: seededRooms[2].id,
+        userId: alex.id,
+        title: weeklySeries.title,
+        startAt: startAt.toUTC().toJSDate(),
+        endAt: startAt.plus({ hours: 1 }).toUTC().toJSDate(),
+        seriesId: weeklySeries.id,
+        occurrenceIndex: index,
+      },
+    });
+  }
+
   console.info("Seed complete: 6 rooms, 2 demo users, and demo bookings.");
 }
 

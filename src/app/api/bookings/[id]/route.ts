@@ -1,11 +1,11 @@
 import { z } from "zod";
 
 import { apiError } from "@/lib/api";
-import { db } from "@/lib/db";
+import { BookingServiceError, cancelBooking } from "@/lib/booking-service";
 import { getCurrentUser } from "@/lib/session";
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const user = await getCurrentUser();
@@ -15,23 +15,21 @@ export async function DELETE(
   if (!z.string().uuid().safeParse(id).success) {
     return apiError(404, "NOT_FOUND", "Booking not found.");
   }
-
-  const booking = await db.booking.findUnique({
-    where: { id },
-    select: { userId: true, cancelledAt: true },
-  });
-
-  if (!booking) return apiError(404, "NOT_FOUND", "Booking not found.");
-  if (booking.userId !== user.id) {
-    return apiError(403, "FORBIDDEN", "You can only cancel your own bookings.");
+  const scopeResult = z
+    .enum(["occurrence", "series"])
+    .safeParse(new URL(request.url).searchParams.get("scope") ?? "occurrence");
+  if (!scopeResult.success) {
+    return apiError(422, "VALIDATION_ERROR", "Choose a valid cancellation scope.");
   }
 
-  if (!booking.cancelledAt) {
-    await db.booking.update({
-      where: { id },
-      data: { cancelledAt: new Date() },
-    });
+  try {
+    const cancelledCount = await cancelBooking(id, user.id, scopeResult.data);
+    return Response.json({ cancelledCount });
+  } catch (error) {
+    if (error instanceof BookingServiceError) {
+      return apiError(error.status, error.code, error.message, error.fieldErrors);
+    }
+    console.error("Booking cancellation failed", error);
+    return apiError(500, "SERVER_ERROR", "Could not cancel the booking.");
   }
-
-  return new Response(null, { status: 204 });
 }

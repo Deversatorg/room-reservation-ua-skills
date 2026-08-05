@@ -16,6 +16,7 @@ model User {
   createdAt              DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
   sessions               Session[]
   bookings               Booking[]
+  bookingSeries          BookingSeries[]
   emailVerificationToken EmailVerificationToken?
 
   @@map("users")
@@ -51,8 +52,26 @@ model Room {
   capacity  Int
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   bookings  Booking[]
+  bookingSeries BookingSeries[]
 
   @@map("rooms")
+}
+
+model BookingSeries {
+  id              String    @id @default(uuid()) @db.Uuid
+  userId          String    @map("user_id") @db.Uuid
+  roomId          String    @map("room_id") @db.Uuid
+  title           String    @db.VarChar(100)
+  kind            String    @default("WEEKLY") @db.VarChar(16)
+  occurrenceCount Int       @map("occurrence_count")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  user            User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+  room            Room      @relation(fields: [roomId], references: [id], onDelete: Restrict)
+  bookings        Booking[]
+
+  @@index([userId])
+  @@index([roomId])
+  @@map("booking_series")
 }
 
 model Booking {
@@ -63,11 +82,15 @@ model Booking {
   startAt     DateTime  @map("start_at") @db.Timestamptz(3)
   endAt       DateTime  @map("end_at") @db.Timestamptz(3)
   cancelledAt DateTime? @map("cancelled_at") @db.Timestamptz(3)
+  seriesId     String?   @map("series_id") @db.Uuid
+  occurrenceIndex Int?  @map("occurrence_index")
   createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   room        Room      @relation(fields: [roomId], references: [id], onDelete: Restrict)
   user        User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+  series      BookingSeries? @relation(fields: [seriesId], references: [id], onDelete: Restrict)
 
   @@index([roomId, startAt, endAt])
   @@index([userId, startAt])
+  @@unique([seriesId, occurrenceIndex])
   @@map("bookings")
 }
