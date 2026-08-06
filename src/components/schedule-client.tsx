@@ -2,9 +2,11 @@
 
 import { DateTime } from "luxon";
 import {
+  Building2,
   CalendarPlus,
   ChevronLeft,
   ChevronRight,
+  Clock3,
   Globe2,
   LoaderCircle,
   MapPin,
@@ -44,6 +46,15 @@ import {
 } from "@/lib/calendar-time";
 import type { AvailabilityOption, BookingDto, RoomDto } from "@/lib/types";
 
+const ROOM_ACCENTS = [
+  "bg-cyan-50 text-cyan-700 ring-cyan-100",
+  "bg-violet-50 text-violet-700 ring-violet-100",
+  "bg-amber-50 text-amber-700 ring-amber-100",
+  "bg-emerald-50 text-emerald-700 ring-emerald-100",
+  "bg-rose-50 text-rose-700 ring-rose-100",
+  "bg-blue-50 text-blue-700 ring-blue-100",
+] as const;
+
 export function ScheduleClient({
   rooms,
   initialRoomId,
@@ -79,6 +90,10 @@ export function ScheduleClient({
   );
   const selectedRoom =
     filteredRooms.find((room) => room.id === roomId) ?? filteredRooms[0];
+  const selectedRoomIndex = Math.max(
+    0,
+    rooms.findIndex((room) => room.id === selectedRoom?.id),
+  );
   const mobileLocalDay = userZone
     ? getLocalOfficeDayPresentation(selectedDay, userZone)
     : null;
@@ -259,16 +274,29 @@ export function ScheduleClient({
   }
 
   return (
-    <main className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8">
-      <div className="flex flex-wrap items-end justify-between gap-4">
+    <main className="mx-auto max-w-[1600px] px-4 py-7 sm:px-6 sm:py-9 lg:px-8">
+      <div className="ui-enter flex flex-wrap items-end justify-between gap-5">
         <div>
-          <p className="text-sm font-semibold text-indigo-600">Workspace calendar</p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950">
+          <p className="inline-flex items-center gap-2 rounded-full border border-emerald-200/80 bg-emerald-50/80 px-3 py-1 text-xs font-bold uppercase tracking-[0.12em] text-emerald-700">
+            <span className="soft-pulse size-2 rounded-full bg-emerald-500" />
+            Live availability
+          </p>
+          <h1 className="mt-3 text-3xl font-semibold tracking-[-0.035em] text-slate-950 sm:text-4xl">
             Meeting room schedule
           </h1>
+          <div className="mt-2 hidden flex-wrap items-center gap-x-5 gap-y-1 text-sm text-slate-500 sm:flex">
+            <span className="inline-flex items-center gap-1.5">
+              <Building2 className="size-4 text-indigo-500" />
+              {filteredRooms.length} room{filteredRooms.length === 1 ? "" : "s"} in view
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <Clock3 className="size-4 text-indigo-500" />
+              09:00–19:00 Kyiv office time
+            </span>
+          </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <label className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-600 shadow-sm">
+          <label className="inline-flex h-10 items-center gap-2 rounded-xl border border-white/80 bg-white/90 px-3 text-sm text-slate-600 shadow-[0_4px_16px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/70 backdrop-blur">
             <SlidersHorizontal className="size-4 text-indigo-500" />
             <span className="sr-only sm:not-sr-only">Minimum capacity</span>
             <select
@@ -283,14 +311,14 @@ export function ScheduleClient({
               ))}
             </select>
           </label>
-          <span className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 shadow-sm">
+          <span className="inline-flex items-center gap-2 rounded-xl border border-white/80 bg-white/90 px-3 py-2 text-sm text-slate-600 shadow-[0_4px_16px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/70 backdrop-blur">
             <Globe2 className="size-4 text-indigo-500" />
             {userZone ?? "Detecting timezone…"}
           </span>
           <button
             type="button"
             onClick={openFinder}
-            className="inline-flex h-10 items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 text-sm font-semibold text-indigo-700 shadow-sm transition hover:border-indigo-300 hover:bg-indigo-100"
+            className="inline-flex h-10 items-center gap-2 rounded-xl border border-indigo-200 bg-white px-4 text-sm font-semibold text-indigo-700 shadow-[0_4px_16px_rgba(79,70,229,0.08)] transition hover:-translate-y-0.5 hover:border-indigo-300 hover:bg-indigo-50"
           >
             <Search className="size-4" /> Find a room
           </button>
@@ -302,16 +330,18 @@ export function ScheduleClient({
                 startTime: "09:00",
               })
             }
-            className="inline-flex h-10 items-center gap-2 rounded-xl bg-indigo-600 px-4 text-sm font-semibold text-white shadow-lg shadow-indigo-600/20 transition hover:bg-indigo-700"
+            className="inline-flex h-10 items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 text-sm font-semibold text-white shadow-lg shadow-indigo-600/20 transition hover:-translate-y-0.5 hover:shadow-xl hover:shadow-indigo-600/25"
           >
             <Plus className="size-4" /> New booking
           </button>
         </div>
       </div>
 
-      <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm md:hidden">
+      <div className="ui-enter mt-6 rounded-3xl border border-white/80 bg-white/90 p-3 shadow-[0_10px_30px_rgba(15,23,42,0.08)] ring-1 ring-slate-200/70 backdrop-blur md:hidden">
         <label className="block text-xs font-bold uppercase tracking-[0.14em] text-slate-600">
-          Meeting room
+          <span className="flex items-center gap-2 px-1">
+            <Building2 className="size-4 text-indigo-500" /> Meeting room
+          </span>
           <select
             value={roomId}
             onChange={(event) => updateLocation(event.target.value, weekStart)}
@@ -326,32 +356,54 @@ export function ScheduleClient({
         </label>
       </div>
 
-      <div className="mt-4 grid gap-5 md:mt-6 lg:grid-cols-[240px_minmax(0,1fr)]">
-        <aside className="hidden rounded-2xl border border-slate-200 bg-white p-3 shadow-sm md:block lg:self-start">
-          <p className="px-2 pb-2 pt-1 text-xs font-bold uppercase tracking-[0.16em] text-slate-600">
-            Meeting rooms
-          </p>
+      <div className="ui-enter mt-4 grid gap-5 [animation-delay:80ms] md:mt-6 lg:grid-cols-[250px_minmax(0,1fr)]">
+        <aside className="hidden rounded-3xl border border-white/80 bg-white/90 p-3 shadow-[0_12px_40px_rgba(15,23,42,0.08)] ring-1 ring-slate-200/70 backdrop-blur md:block lg:sticky lg:top-24 lg:self-start">
+          <div className="flex items-center justify-between px-2 pb-3 pt-1">
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-600">
+              Meeting rooms
+            </p>
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">
+              {filteredRooms.length}
+            </span>
+          </div>
           <div className="space-y-1">
-            {filteredRooms.map((room) => {
+            {filteredRooms.map((room, roomIndex) => {
               const active = room.id === roomId;
               return (
                 <button
                   key={room.id}
                   type="button"
                   onClick={() => updateLocation(room.id, weekStart)}
-                  className={`w-full rounded-xl px-3 py-3 text-left transition ${
+                  className={`group w-full rounded-2xl px-3 py-3 text-left transition ${
                     active
-                      ? "bg-indigo-50 text-indigo-950 ring-1 ring-indigo-100"
+                      ? "bg-slate-950 text-white shadow-lg shadow-slate-950/15"
                       : "text-slate-600 hover:bg-slate-50 hover:text-slate-950"
                   }`}
                 >
-                  <span className="block font-semibold">{room.name}</span>
-                  <span className="mt-1 flex items-center gap-3 text-xs text-slate-600">
-                    <span className="inline-flex items-center gap-1">
-                      <MapPin className="size-3" /> Floor {room.floor}
+                  <span className="flex items-center gap-3">
+                    <span
+                      className={`grid size-9 shrink-0 place-items-center rounded-xl text-sm font-bold ring-1 ${
+                        active
+                          ? "bg-white/10 text-white ring-white/10"
+                          : ROOM_ACCENTS[roomIndex % ROOM_ACCENTS.length]
+                      }`}
+                    >
+                      {room.name.slice(0, 1)}
                     </span>
-                    <span className="inline-flex items-center gap-1">
-                      <Users className="size-3" /> {room.capacity}
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-semibold">{room.name}</span>
+                      <span
+                        className={`mt-0.5 flex items-center gap-3 text-xs ${
+                          active ? "text-slate-300" : "text-slate-500"
+                        }`}
+                      >
+                        <span className="inline-flex items-center gap-1">
+                          <MapPin className="size-3" /> Floor {room.floor}
+                        </span>
+                        <span className="inline-flex items-center gap-1">
+                          <Users className="size-3" /> {room.capacity}
+                        </span>
+                      </span>
                     </span>
                   </span>
                 </button>
@@ -360,8 +412,13 @@ export function ScheduleClient({
           </div>
         </aside>
 
-        <section className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 px-4 py-3">
+        <section className="min-w-0 overflow-hidden rounded-3xl border border-white/80 bg-white shadow-[0_16px_50px_rgba(15,23,42,0.10)] ring-1 ring-slate-200/70">
+          <div className="flex flex-wrap items-center gap-3 border-b border-slate-200/80 bg-gradient-to-r from-white via-white to-indigo-50/40 px-4 py-3.5 sm:px-5">
+            <span
+              className={`hidden size-10 shrink-0 place-items-center rounded-xl ring-1 sm:grid ${ROOM_ACCENTS[selectedRoomIndex % ROOM_ACCENTS.length]}`}
+            >
+              <Building2 className="size-5" />
+            </span>
             <div>
               <p className="font-semibold text-slate-950">{selectedRoom.name}</p>
               <p className="text-xs text-slate-600">
@@ -371,11 +428,20 @@ export function ScheduleClient({
                 Office timezone: {OFFICE_TIME_ZONE}
               </p>
             </div>
-            <div className="ml-auto flex items-center gap-1">
+            <div className="ml-auto flex items-center gap-3">
+              <div className="hidden items-center gap-3 text-[11px] font-semibold text-slate-500 xl:flex">
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="size-2 rounded-full bg-emerald-400" /> Available
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="size-2 rounded-full bg-indigo-500" /> Booked
+                </span>
+              </div>
+              <div className="flex items-center gap-1 rounded-xl border border-slate-200/80 bg-white p-1 shadow-sm">
               <button
                 type="button"
                 onClick={() => (isMobile ? moveDay(-1) : moveWeek(-1))}
-                className="grid size-9 place-items-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-950"
+                className="grid size-8 place-items-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-950"
                 aria-label={isMobile ? "Previous day" : "Previous week"}
               >
                 <ChevronLeft className="size-5" />
@@ -383,18 +449,19 @@ export function ScheduleClient({
               <button
                 type="button"
                 onClick={goToday}
-                className="h-9 rounded-lg border border-slate-200 px-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+                className="h-8 rounded-lg bg-slate-950 px-3 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800"
               >
                 Today
               </button>
               <button
                 type="button"
                 onClick={() => (isMobile ? moveDay(1) : moveWeek(1))}
-                className="grid size-9 place-items-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-950"
+                className="grid size-8 place-items-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-950"
                 aria-label={isMobile ? "Next day" : "Next week"}
               >
                 <ChevronRight className="size-5" />
               </button>
+              </div>
             </div>
           </div>
 
@@ -525,10 +592,10 @@ function CalendarGrid({
           : "72px repeat(7, minmax(138px, 1fr))",
         gridTemplateRows: "68px repeat(20, 48px)",
       }}
-      className={`relative grid bg-slate-200 gap-px ${mobileDay ? "min-w-0" : "min-w-[1050px]"}`}
+      className={`relative grid gap-px bg-slate-200/80 ${mobileDay ? "min-w-0" : "min-w-[1050px]"}`}
       aria-busy={loading}
     >
-      <div className="sticky left-0 z-30 bg-white" />
+      <div className="sticky left-0 z-30 bg-slate-50/95" />
       {days.map((day, dayIndex) => {
         const localDay = getLocalOfficeDayPresentation(day.toISODate()!, userZone);
         const isToday = day.toISODate() === nowOffice.toISODate();
@@ -536,7 +603,11 @@ function CalendarGrid({
           <div
             key={day.toISODate()}
             style={{ gridColumn: dayIndex + 2, gridRow: 1 }}
-            className={`flex flex-col items-center justify-center bg-white ${isToday ? "text-indigo-700" : "text-slate-600"}`}
+            className={`flex flex-col items-center justify-center ${
+              isToday
+                ? "bg-gradient-to-b from-indigo-50 to-white text-indigo-700"
+                : "bg-slate-50/95 text-slate-600"
+            }`}
           >
             <span className="text-xs font-bold uppercase tracking-[0.12em]">
               {localDay.headerWeekday}
@@ -556,7 +627,7 @@ function CalendarGrid({
           <div key={time} className="contents">
             <div
               style={{ gridColumn: 1, gridRow: slotIndex + 2 }}
-              className="sticky left-0 z-20 flex items-start justify-end bg-white pr-3 pt-1 text-[11px] font-medium text-slate-600"
+              className="sticky left-0 z-20 flex items-start justify-end bg-slate-50/95 pr-3 pt-1 text-[11px] font-semibold text-slate-500"
             >
               {localTime}
             </div>
@@ -574,6 +645,7 @@ function CalendarGrid({
               );
               const isCurrent =
                 officeDate === nowOffice.toISODate() && slotIndex === currentSlot;
+              const isTodayColumn = officeDate === nowOffice.toISODate();
               return (
                 <button
                   key={`${officeDate}-${time}`}
@@ -581,8 +653,14 @@ function CalendarGrid({
                   disabled={occupied || loading}
                   onClick={() => onSelect({ officeDate, startTime: time })}
                   style={{ gridColumn: dayIndex + 2, gridRow: slotIndex + 2 }}
-                  className={`relative bg-white transition hover:bg-indigo-50 disabled:cursor-default ${
-                    isCurrent ? "after:absolute after:left-0 after:right-0 after:top-0 after:h-0.5 after:bg-rose-500" : ""
+                  className={`relative transition disabled:cursor-default ${
+                    isTodayColumn
+                      ? "bg-indigo-50/25 hover:bg-indigo-50/80"
+                      : "bg-white hover:bg-indigo-50/70"
+                  } ${
+                    isCurrent
+                      ? "after:absolute after:left-0 after:right-0 after:top-0 after:h-0.5 after:bg-rose-500 after:shadow-[0_0_8px_rgba(244,63,94,0.65)]"
+                      : ""
                   }`}
                   aria-label={`Book ${localSlot.toFormat("HH:mm")} on ${localSlot.toFormat("cccc, LLLL d")}`}
                 />
@@ -619,10 +697,10 @@ function CalendarGrid({
               gridColumn: dayIndex + 2,
               gridRow: `${startSlot + 2} / span ${durationSlots}`,
             }}
-            className={`z-10 m-1 overflow-hidden rounded-lg border-l-4 px-2 py-1.5 text-left shadow-sm transition ${
+            className={`z-10 m-1 overflow-hidden rounded-xl border-l-[3px] px-2.5 py-1.5 text-left shadow-[0_4px_12px_rgba(15,23,42,0.10)] transition hover:-translate-y-px hover:shadow-md ${
               booking.canCancel
-                ? "border-indigo-600 bg-indigo-100 text-indigo-950 hover:bg-indigo-200"
-                : "border-slate-500 bg-slate-100 text-slate-800"
+                ? "border-indigo-600 bg-gradient-to-br from-indigo-100 to-violet-100 text-indigo-950 hover:from-indigo-200 hover:to-violet-100"
+                : "border-slate-500 bg-gradient-to-br from-slate-100 to-slate-50 text-slate-800 hover:from-slate-200 hover:to-slate-100"
             }`}
           >
             <span className="block truncate text-xs font-bold">{booking.title}</span>
@@ -640,8 +718,8 @@ function CalendarGrid({
       })}
 
       {loading && (
-        <div className="pointer-events-none absolute inset-0 z-40 grid place-items-center bg-white/55 backdrop-blur-[1px]">
-          <span className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-semibold text-slate-600 shadow-lg">
+        <div className="pointer-events-none absolute inset-0 z-40 grid place-items-center bg-white/55 backdrop-blur-[2px]">
+          <span className="inline-flex items-center gap-2 rounded-2xl border border-white/80 bg-white/95 px-4 py-2.5 text-sm font-semibold text-slate-600 shadow-xl ring-1 ring-slate-200/70">
             <LoaderCircle className="size-4 animate-spin text-indigo-600" /> Loading schedule…
           </span>
         </div>

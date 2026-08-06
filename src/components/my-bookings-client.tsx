@@ -3,6 +3,7 @@
 import { DateTime } from "luxon";
 import {
   CalendarClock,
+  CalendarDays,
   CalendarX2,
   ChevronRight,
   Clock3,
@@ -137,24 +138,26 @@ export function MyBookingsClient() {
   const visibleBookings = activeTab === "upcoming" ? upcoming : past;
 
   return (
-    <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
-      <div className="flex flex-wrap items-end justify-between gap-4">
+    <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
+      <div className="ui-enter flex flex-wrap items-end justify-between gap-5">
         <div>
-          <p className="text-sm font-semibold text-indigo-600">Personal schedule</p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950">
+          <p className="inline-flex items-center gap-2 rounded-full border border-indigo-200/80 bg-indigo-50/80 px-3 py-1 text-xs font-bold uppercase tracking-[0.12em] text-indigo-700">
+            <CalendarDays className="size-3.5" /> Personal schedule
+          </p>
+          <h1 className="mt-3 text-3xl font-semibold tracking-[-0.035em] text-slate-950 sm:text-4xl">
             My bookings
           </h1>
           <p className="mt-2 text-slate-500">
             Everything you booked, ordered around what matters next.
           </p>
         </div>
-        <span className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 shadow-sm">
+        <span className="inline-flex items-center gap-2 rounded-xl border border-white/80 bg-white/90 px-3 py-2 text-sm text-slate-600 shadow-[0_4px_16px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/70 backdrop-blur">
           <Globe2 className="size-4 text-indigo-500" />
           {userZone ?? "Detecting timezone…"}
         </span>
       </div>
 
-      <div className="mt-8 flex w-fit rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+      <div className="ui-enter mt-8 flex w-fit rounded-2xl border border-white/80 bg-white/90 p-1.5 shadow-[0_8px_24px_rgba(15,23,42,0.07)] ring-1 ring-slate-200/70 [animation-delay:70ms]">
         <TabButton
           active={activeTab === "upcoming"}
           onClick={() => setActiveTab("upcoming")}
@@ -182,7 +185,7 @@ export function MyBookingsClient() {
         </div>
       )}
 
-      <section className="mt-5 space-y-3" aria-busy={loading}>
+      <section className="ui-enter mt-5 space-y-3 [animation-delay:110ms]" aria-busy={loading}>
         {loading ? (
           <BookingListSkeleton />
         ) : visibleBookings.length === 0 ? (
@@ -245,8 +248,14 @@ function BookingRow({
   const href = `/schedule?room=${booking.roomId}&week=${officeWeek}`;
 
   return (
-    <article className="group flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-indigo-200 hover:shadow-md sm:flex-row sm:items-center sm:p-5">
-      <div className="grid size-14 shrink-0 place-items-center rounded-2xl bg-indigo-50 text-center text-indigo-700">
+    <article className="group flex flex-col gap-4 rounded-3xl border border-white/80 bg-white/90 p-4 shadow-[0_8px_30px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/70 transition hover:-translate-y-0.5 hover:ring-indigo-200 hover:shadow-[0_14px_36px_rgba(79,70,229,0.10)] sm:flex-row sm:items-center sm:p-5">
+      <div
+        className={`grid size-14 shrink-0 place-items-center rounded-2xl text-center ring-1 ${
+          showCancel
+            ? "bg-slate-950 text-white ring-slate-800 shadow-lg shadow-slate-950/15"
+            : "bg-slate-100 text-slate-600 ring-slate-200"
+        }`}
+      >
         <span className="text-[10px] font-bold uppercase tracking-wider">{start.toFormat("LLL")}</span>
         <span className="-mt-2 text-lg font-bold">{start.day}</span>
       </div>
@@ -260,12 +269,12 @@ function BookingRow({
             <Repeat2 className="size-3" /> Weekly · {booking.series.occurrence} of {booking.series.count}
           </span>
         )}
-        <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-sm text-slate-500">
-          <span className="inline-flex items-center gap-1.5">
+        <div className="mt-2.5 flex flex-wrap gap-2 text-sm text-slate-500">
+          <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-50 px-2.5 py-1 ring-1 ring-slate-100">
             <Clock3 className="size-4 text-slate-400" />
             {start.toFormat("ccc, LLL d · HH:mm")}–{end.toFormat("HH:mm")}
           </span>
-          <span className="inline-flex items-center gap-1.5">
+          <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-50 px-2.5 py-1 ring-1 ring-slate-100">
             <MapPin className="size-4 text-slate-400" />
             {booking.room.name}, floor {booking.room.floor}
           </span>
@@ -310,8 +319,10 @@ function TabButton({
     <button
       type="button"
       onClick={onClick}
-      className={`flex h-9 items-center gap-2 rounded-lg px-4 text-sm font-semibold transition ${
-        active ? "bg-indigo-600 text-white shadow-sm" : "text-slate-500 hover:text-slate-800"
+      className={`flex h-9 items-center gap-2 rounded-xl px-4 text-sm font-semibold transition ${
+        active
+          ? "bg-slate-950 text-white shadow-md shadow-slate-950/15"
+          : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"
       }`}
     >
       {label}
@@ -324,7 +335,7 @@ function BookingListSkeleton() {
   return (
     <div className="space-y-3">
       {[0, 1, 2].map((item) => (
-        <div key={item} className="h-24 animate-pulse rounded-2xl border border-slate-200 bg-white p-5">
+        <div key={item} className="h-24 animate-pulse rounded-3xl border border-white/80 bg-white/90 p-5 shadow-sm ring-1 ring-slate-200/70">
           <div className="h-4 w-1/3 rounded bg-slate-100" />
           <div className="mt-3 h-3 w-1/2 rounded bg-slate-100" />
         </div>
@@ -338,7 +349,7 @@ function EmptyBookings({ status }: { status: "upcoming" | "past" }) {
   const Icon = isUpcoming ? CalendarClock : CalendarX2;
 
   return (
-    <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-16 text-center">
+    <div className="rounded-3xl border border-dashed border-slate-300 bg-white/90 px-6 py-16 text-center shadow-[0_12px_36px_rgba(15,23,42,0.06)]">
       <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-indigo-50 text-indigo-600">
         <Icon className="size-6" />
       </span>
