@@ -9,6 +9,7 @@ import {
   LoaderCircle,
   MapPin,
   Plus,
+  Search,
   SlidersHorizontal,
   RefreshCw,
   Users,
@@ -34,13 +35,14 @@ import {
   BookingDialog,
   type SelectedSlot,
 } from "@/components/schedule/booking-dialog";
+import { FindRoomDialog } from "@/components/schedule/find-room-dialog";
 import { useUserTimeZone } from "@/hooks/use-user-time-zone";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import {
   getLocalOfficeDayPresentation,
   localSlotTimeLabel,
 } from "@/lib/calendar-time";
-import type { BookingDto, RoomDto } from "@/lib/types";
+import type { AvailabilityOption, BookingDto, RoomDto } from "@/lib/types";
 
 export function ScheduleClient({
   rooms,
@@ -67,6 +69,7 @@ export function ScheduleClient({
   const [loadError, setLoadError] = useState<string>();
   const [refreshKey, setRefreshKey] = useState(0);
   const [selectedSlot, setSelectedSlot] = useState<SelectedSlot>();
+  const [finderOpen, setFinderOpen] = useState(false);
   const [bookingTrigger, setBookingTrigger] = useState<HTMLElement | null>(null);
   const [selectedBooking, setSelectedBooking] = useState<BookingDto>();
   const [cancelPending, setCancelPending] = useState(false);
@@ -215,7 +218,12 @@ export function ScheduleClient({
       .startOf("week")
       .toISODate()!;
     setSelectedSlot(undefined);
-    updateLocation(nextRoomId, nextWeek, officeDate);
+    const nextCapacity = rooms.some(
+      (room) => room.id === nextRoomId && room.capacity >= minCapacity,
+    )
+      ? minCapacity
+      : 0;
+    updateLocation(nextRoomId, nextWeek, officeDate, nextCapacity);
     setRefreshKey((value) => value + 1);
   }
 
@@ -224,6 +232,24 @@ export function ScheduleClient({
       document.activeElement instanceof HTMLElement ? document.activeElement : null,
     );
     setSelectedSlot(slot);
+  }
+
+  function openFinder() {
+    setBookingTrigger(
+      document.activeElement instanceof HTMLElement ? document.activeElement : null,
+    );
+    setFinderOpen(true);
+  }
+
+  function chooseAvailability(option: AvailabilityOption, capacity: number) {
+    setFinderOpen(false);
+    setSelectedSlot({
+      officeDate: option.officeDate,
+      startTime: option.startTime,
+      endTime: option.endTime,
+      roomId: option.room.id,
+      minCapacity: capacity,
+    });
   }
 
   if (!selectedRoom) {
@@ -261,6 +287,13 @@ export function ScheduleClient({
             <Globe2 className="size-4 text-indigo-500" />
             {userZone ?? "Detecting timezone…"}
           </span>
+          <button
+            type="button"
+            onClick={openFinder}
+            className="inline-flex h-10 items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 text-sm font-semibold text-indigo-700 shadow-sm transition hover:border-indigo-300 hover:bg-indigo-100"
+          >
+            <Search className="size-4" /> Find a room
+          </button>
           <button
             type="button"
             onClick={() =>
@@ -399,11 +432,29 @@ export function ScheduleClient({
         </section>
       </div>
 
+      {finderOpen ? (
+        userZone ? (
+          <FindRoomDialog
+            initialDate={selectedDay}
+            initialCapacity={minCapacity}
+            userZone={userZone}
+            returnFocus={bookingTrigger}
+            onClose={() => setFinderOpen(false)}
+            onSelect={chooseAvailability}
+          />
+        ) : null
+      ) : null}
       {selectedSlot && userZone && (
         <BookingDialog
-          key={`${selectedSlot.officeDate}-${selectedSlot.startTime}`}
-          rooms={filteredRooms}
-          initialRoomId={roomId}
+          key={`${selectedSlot.roomId ?? roomId}-${selectedSlot.officeDate}-${selectedSlot.startTime}-${selectedSlot.endTime ?? ""}`}
+          rooms={
+            selectedSlot.minCapacity
+              ? rooms.filter(
+                  (room) => room.capacity >= (selectedSlot.minCapacity ?? 0),
+                )
+              : filteredRooms
+          }
+          initialRoomId={selectedSlot.roomId ?? roomId}
           slot={selectedSlot}
           userZone={userZone}
           returnFocus={bookingTrigger}

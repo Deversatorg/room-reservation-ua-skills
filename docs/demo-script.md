@@ -11,10 +11,10 @@ Use a desktop viewport first, then switch DevTools to 390 × 844. Keep a termina
 
 ## 0:25–0:55 — Calendar and capacity filter
 
-1. Select **12+ people** in **Minimum capacity**.
-2. Show that only Atlas and Orbit remain and the selected room updates automatically.
-3. Point to `capacity=12` in the URL, refresh, and show that the filter survives.
-4. Navigate one week forward and back; note the custom CSS Grid and 30-minute slots.
+1. Click **Find a room**, enter a date, start time, duration, and number of people.
+2. Show all rooms available at the exact time; if the slot is busy, Roomly ranks the nearest matches over the next 14 days.
+3. Choose a result and show that its room, date, start, and end are prefilled in **New booking**.
+4. Select **12+ people** in **Minimum capacity** and show that only Atlas and Orbit remain; the value is also preserved in the URL.
 
 ## 0:55–1:35 — Atomic recurring booking
 
@@ -56,7 +56,7 @@ npm run test:race
 
 Close with the guarantees:
 
-- 24 unit tests and 12 API/E2E/Axe tests.
+- 28 unit tests and 12 API/E2E/Axe tests.
 - PostgreSQL exclusion constraint gives exactly one race winner.
 - Weekly series creation is all-or-nothing.
 - Notification claiming is locked and uniquely deduplicated.

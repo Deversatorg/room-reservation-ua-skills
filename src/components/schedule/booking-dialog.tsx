@@ -24,7 +24,13 @@ import {
 } from "@/lib/calendar-time";
 import type { RoomDto } from "@/lib/types";
 
-export type SelectedSlot = { officeDate: string; startTime: string };
+export type SelectedSlot = {
+  officeDate: string;
+  startTime: string;
+  endTime?: string;
+  roomId?: string;
+  minCapacity?: number;
+};
 
 export function BookingDialog({
   rooms,
@@ -46,7 +52,9 @@ export function BookingDialog({
   const [roomId, setRoomId] = useState(initialRoomId);
   const [date, setDate] = useState(slot.officeDate);
   const [startTime, setStartTime] = useState(slot.startTime);
-  const [endTime, setEndTime] = useState(addMinutes(slot.startTime, SLOT_MINUTES));
+  const [endTime, setEndTime] = useState(
+    slot.endTime ?? addMinutes(slot.startTime, SLOT_MINUTES),
+  );
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<string>();
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});

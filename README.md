@@ -5,7 +5,7 @@
 ![Next.js 16](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs)
 ![PostgreSQL 17](https://img.shields.io/badge/PostgreSQL-17-4169E1?logo=postgresql&logoColor=white)
 
-Roomly is a timezone-aware meeting-room reservation application built for the UA-Skills event2 competition. It combines a hand-built calendar, strict server-side booking rules, database-level race protection, weekly series, email verification, and exactly-once in-app handoff notifications.
+Roomly is a timezone-aware meeting-room reservation application built for the UA-Skills event2 competition. It combines a hand-built calendar, strict server-side booking rules, database-level race protection, weekly series, email verification, exactly-once in-app handoff notifications, and a smart room availability finder.
 
 **Live demo:** [https://roomly-ua-skills.vercel.app](https://roomly-ua-skills.vercel.app)
 
@@ -49,6 +49,7 @@ The seed creates six meeting rooms, ordinary reservations, and a three-occurrenc
 | Conflict handling | Friendly API check plus PostgreSQL GiST exclusion constraint | Run the simultaneous race test |
 | Cancellation rights | Soft cancellation; only the author may cancel | Try cancelling Alex's booking as Maria in API tests |
 | Personal history | Upcoming/past tabs, deep links back to the schedule | Open **My bookings** |
+| Smart availability search | Finds every exact room that fits, or ranks the nearest free alternatives over 14 days | Click **Find a room**, enter time, duration, and people, then choose a result |
 
 ## All 8 bonus features
 
@@ -71,9 +72,11 @@ flowchart LR
   API --> AUTH["Auth and email\nverification services"]
   API --> BOOK["Booking domain\nservice"]
   API --> NOTIFY["Notification claim\nservice"]
+  API --> FIND["Availability ranking\nservice"]
   AUTH --> PRISMA["Prisma 7 adapter"]
   BOOK --> PRISMA
   NOTIFY --> PRISMA
+  FIND --> PRISMA
   PRISMA --> PG["PostgreSQL 17\nconstraints + transactions"]
   UI -->|"poll every 15 s / focus"| NOTIFY
 ```
@@ -83,6 +86,7 @@ The larger concerns are separated into domain services and focused UI components
 - `booking-service.ts` owns create/cancel transactions and maps domain errors.
 - `booking-series.ts` generates DST-safe weekly occurrences at the same Kyiv local time.
 - `notification-service.ts` atomically claims eligible handoffs and guarantees deduplication.
+- `availability-service.ts` queries eligible rooms once and ranks exact or nearest free slots without side effects.
 - `email-verification.ts` creates, hashes, expires, and logs development verification tokens.
 - `booking-dialog.tsx` isolates recurrence form state and accessible dialog behaviour.
 - `use-accessible-dialog.ts` provides Escape, Tab trapping, initial focus, scroll locking, and focus restoration.
@@ -105,6 +109,7 @@ Weekly occurrences are calculated from the Kyiv wall clock and converted to UTC 
 | `POST` | `/api/auth/verify-email` | Consume a one-time verification token |
 | `POST` | `/api/auth/resend-verification` | Rate-limited token replacement |
 | `GET` | `/api/rooms?minCapacity=N` | List or filter rooms |
+| `GET` | `/api/availability?date=&startTime=&durationMinutes=&minCapacity=` | Find exact rooms or nearest available slots |
 | `GET`, `POST` | `/api/bookings` | Read a room range or create one/recurring bookings |
 | `DELETE` | `/api/bookings/:id?scope=occurrence\|series` | Cancel one occurrence or all future occurrences |
 | `GET` | `/api/me/bookings?status=upcoming\|past` | Personal booking history |
@@ -136,7 +141,7 @@ docker compose logs app
 ## Test matrix
 
 ```bash
-npm test                 # 24 Vitest unit tests
+npm test                 # 28 Vitest unit tests
 npm run test:integration # 5 Playwright API tests
 npm run test:e2e         # 7 Chromium UI/Axe tests
 npm run test:browser     # all 12 browser/API tests on a fresh test DB

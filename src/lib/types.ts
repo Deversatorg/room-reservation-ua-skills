@@ -17,6 +17,27 @@ export type BookingDto = {
   series: { id: string; occurrence: number; count: number } | null;
 };
 
+export type AvailabilityOption = {
+  room: RoomDto;
+  officeDate: string;
+  startTime: string;
+  endTime: string;
+  startAt: string;
+  endAt: string;
+};
+
+export type AvailabilitySearchResult = {
+  requested: {
+    officeDate: string;
+    startTime: string;
+    endTime: string;
+    durationMinutes: number;
+    minCapacity: number;
+  };
+  exact: AvailabilityOption[];
+  alternatives: AvailabilityOption[];
+};
+
 export type NotificationDto = {
   id: string;
   currentTitle: string;
