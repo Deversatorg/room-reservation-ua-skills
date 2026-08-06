@@ -17,6 +17,11 @@ import {
   OFFICE_TIME_ZONE,
   SLOT_MINUTES,
 } from "@/lib/booking-rules";
+import {
+  getLocalOfficeDayPresentation,
+  localSlotDateTimeLabel,
+  localSlotTimeLabel,
+} from "@/lib/calendar-time";
 import type { RoomDto } from "@/lib/types";
 
 export type SelectedSlot = { officeDate: string; startTime: string };
@@ -47,6 +52,7 @@ export function BookingDialog({
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [repeatWeekly, setRepeatWeekly] = useState(false);
   const [occurrenceCount, setOccurrenceCount] = useState(8);
+  const localDay = getLocalOfficeDayPresentation(date, userZone);
   const dialogRef = useRef<HTMLDivElement>(null);
   useAccessibleDialog(dialogRef, onClose, pending, returnFocus);
   const timeOptions = useMemo(
@@ -138,7 +144,7 @@ export function BookingDialog({
               New booking
             </h2>
             <p className="mt-1 text-sm text-slate-500">
-              Times are shown in {userZone}.
+              Meeting times are shown in {userZone}.
             </p>
           </div>
           <button
@@ -187,6 +193,10 @@ export function BookingDialog({
             />
           </DialogField>
 
+          <p className="-mt-2 text-xs text-slate-500">
+            Local availability: {localDay.longDate} · {localDay.localWindow}
+          </p>
+
           <div className="grid grid-cols-2 gap-3">
             <DialogField label="Starts" error={fieldErrors.startAt?.[0]}>
               <select
@@ -196,7 +206,9 @@ export function BookingDialog({
               >
                 {timeOptions.slice(0, -1).map((time) => (
                   <option key={time} value={time}>
-                    {localSlotLabel(date, time, userZone)}
+                    {localDay.crossesDate
+                      ? localSlotDateTimeLabel(date, time, userZone)
+                      : localSlotTimeLabel(date, time, userZone)}
                   </option>
                 ))}
               </select>
@@ -209,7 +221,9 @@ export function BookingDialog({
               >
                 {timeOptions.slice(1).map((time) => (
                   <option key={time} value={time}>
-                    {localSlotLabel(date, time, userZone)}
+                    {localDay.crossesDate
+                      ? localSlotDateTimeLabel(date, time, userZone)
+                      : localSlotTimeLabel(date, time, userZone)}
                   </option>
                 ))}
               </select>
@@ -307,12 +321,6 @@ function DialogField({
 
 const inputClass =
   "h-11 w-full rounded-xl border border-slate-200 bg-white px-3 font-normal text-slate-950 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10";
-
-function localSlotLabel(officeDate: string, officeTime: string, userZone: string) {
-  return DateTime.fromISO(`${officeDate}T${officeTime}`, { zone: OFFICE_TIME_ZONE })
-    .setZone(userZone)
-    .toFormat("HH:mm");
-}
 
 function timeToMinutes(time: string) {
   const [hours, minutes] = time.split(":").map(Number);

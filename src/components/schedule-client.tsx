@@ -35,6 +35,10 @@ import {
 } from "@/components/schedule/booking-dialog";
 import { useUserTimeZone } from "@/hooks/use-user-time-zone";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import {
+  getLocalOfficeDayPresentation,
+  localSlotTimeLabel,
+} from "@/lib/calendar-time";
 import type { BookingDto, RoomDto } from "@/lib/types";
 
 export function ScheduleClient({
@@ -71,6 +75,9 @@ export function ScheduleClient({
   );
   const selectedRoom =
     filteredRooms.find((room) => room.id === roomId) ?? filteredRooms[0];
+  const mobileLocalDay = userZone
+    ? getLocalOfficeDayPresentation(selectedDay, userZone)
+    : null;
   const touchStart = useRef<{ x: number; y: number } | undefined>(undefined);
 
   useEffect(() => {
@@ -325,7 +332,7 @@ export function ScheduleClient({
               <p className="font-semibold text-slate-950">{selectedRoom.name}</p>
               <p className="text-xs text-slate-600">
                 {isMobile
-                  ? `${DateTime.fromISO(selectedDay, { zone: OFFICE_TIME_ZONE }).toFormat("cccc, LLLL d")} · `
+                  ? `${mobileLocalDay?.longDate ?? selectedDay} · `
                   : ""}
                 Office timezone: {OFFICE_TIME_ZONE}
               </p>
@@ -463,7 +470,7 @@ function CalendarGrid({
     >
       <div className="sticky left-0 z-30 bg-white" />
       {days.map((day, dayIndex) => {
-        const localDate = day.set({ hour: OFFICE_START_HOUR }).setZone(userZone);
+        const localDay = getLocalOfficeDayPresentation(day.toISODate()!, userZone);
         const isToday = day.toISODate() === nowOffice.toISODate();
         return (
           <div
@@ -472,19 +479,19 @@ function CalendarGrid({
             className={`flex flex-col items-center justify-center bg-white ${isToday ? "text-indigo-700" : "text-slate-600"}`}
           >
             <span className="text-xs font-bold uppercase tracking-[0.12em]">
-              {localDate.toFormat("ccc")}
+              {localDay.headerWeekday}
             </span>
             <span
-              className={`mt-1 grid size-8 place-items-center rounded-full text-sm font-semibold ${isToday ? "bg-indigo-600 text-white" : ""}`}
+              className={`mt-1 grid min-h-8 min-w-8 place-items-center rounded-full px-1 text-sm font-semibold ${localDay.crossesDate ? "text-[11px]" : ""} ${isToday ? "bg-indigo-600 text-white" : ""}`}
             >
-              {localDate.day}
+              {localDay.headerDate}
             </span>
           </div>
         );
       })}
 
       {slots.map((time, slotIndex) => {
-        const localTime = localSlotLabel(days[0].toISODate()!, time, userZone);
+        const localTime = localSlotTimeLabel(days[0].toISODate()!, time, userZone);
         return (
           <div key={time} className="contents">
             <div
@@ -499,6 +506,7 @@ function CalendarGrid({
                 zone: OFFICE_TIME_ZONE,
               });
               const slotEnd = slotStart.plus({ minutes: SLOT_MINUTES });
+              const localSlot = slotStart.setZone(userZone);
               const occupied = bookings.some(
                 (booking) =>
                   DateTime.fromISO(booking.startAt) < slotEnd &&
@@ -516,7 +524,7 @@ function CalendarGrid({
                   className={`relative bg-white transition hover:bg-indigo-50 disabled:cursor-default ${
                     isCurrent ? "after:absolute after:left-0 after:right-0 after:top-0 after:h-0.5 after:bg-rose-500" : ""
                   }`}
-                  aria-label={`Book ${localSlotLabel(officeDate, time, userZone)} on ${day.toFormat("cccc, LLLL d")}`}
+                  aria-label={`Book ${localSlot.toFormat("HH:mm")} on ${localSlot.toFormat("cccc, LLLL d")}`}
                 />
               );
             })}
@@ -527,6 +535,11 @@ function CalendarGrid({
       {bookings.map((booking) => {
         const startOffice = DateTime.fromISO(booking.startAt).setZone(OFFICE_TIME_ZONE);
         const endOffice = DateTime.fromISO(booking.endAt).setZone(OFFICE_TIME_ZONE);
+        const startLocal = DateTime.fromISO(booking.startAt).setZone(userZone);
+        const localDay = getLocalOfficeDayPresentation(
+          startOffice.toISODate()!,
+          userZone,
+        );
         const dayIndex = Math.floor(startOffice.startOf("day").diff(gridStart, "days").days);
         const startSlot =
           (startOffice.hour * 60 + startOffice.minute - OFFICE_START_HOUR * 60) /
@@ -553,7 +566,7 @@ function CalendarGrid({
           >
             <span className="block truncate text-xs font-bold">{booking.title}</span>
             <span className="mt-0.5 block truncate text-[10px] opacity-70">
-              {DateTime.fromISO(booking.startAt).setZone(userZone).toFormat("HH:mm")} ·{" "}
+              {startLocal.toFormat(localDay.crossesDate ? "ccc HH:mm" : "HH:mm")} ·{" "}
               {booking.author.name}
             </span>
             {booking.series && (
@@ -603,10 +616,4 @@ function EmptyRooms({
       )}
     </main>
   );
-}
-
-function localSlotLabel(officeDate: string, officeTime: string, userZone: string) {
-  return DateTime.fromISO(`${officeDate}T${officeTime}`, { zone: OFFICE_TIME_ZONE })
-    .setZone(userZone)
-    .toFormat("HH:mm");
 }
