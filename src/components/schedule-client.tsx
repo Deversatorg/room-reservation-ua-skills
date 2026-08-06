@@ -28,6 +28,7 @@ import {
   OFFICE_TIME_ZONE,
   SLOT_MINUTES,
 } from "@/lib/booking-rules";
+import { BookingDetailsDialog } from "@/components/booking-details-dialog";
 import { CancelBookingDialog } from "@/components/cancel-booking-dialog";
 import {
   BookingDialog,
@@ -67,7 +68,7 @@ export function ScheduleClient({
   const [refreshKey, setRefreshKey] = useState(0);
   const [selectedSlot, setSelectedSlot] = useState<SelectedSlot>();
   const [bookingTrigger, setBookingTrigger] = useState<HTMLElement | null>(null);
-  const [bookingToCancel, setBookingToCancel] = useState<BookingDto>();
+  const [selectedBooking, setSelectedBooking] = useState<BookingDto>();
   const [cancelPending, setCancelPending] = useState(false);
   const filteredRooms = useMemo(
     () => rooms.filter((room) => room.capacity >= minCapacity),
@@ -187,11 +188,11 @@ export function ScheduleClient({
   }
 
   async function cancelBooking(scope: "occurrence" | "series") {
-    if (!bookingToCancel) return;
+    if (!selectedBooking?.canCancel) return;
     setCancelPending(true);
     try {
       const response = await fetch(
-        `/api/bookings/${bookingToCancel.id}?scope=${scope}`,
+        `/api/bookings/${selectedBooking.id}?scope=${scope}`,
         { method: "DELETE" },
       );
       if (!response.ok) {
@@ -200,7 +201,7 @@ export function ScheduleClient({
         return;
       }
 
-      setBookingToCancel(undefined);
+      setSelectedBooking(undefined);
       setRefreshKey((value) => value + 1);
     } catch {
       window.alert("The server is unavailable. Please try again.");
@@ -392,7 +393,7 @@ export function ScheduleClient({
               bookings={bookings}
               loading={loading}
               onSelect={openBooking}
-              onCancel={setBookingToCancel}
+              onBookingClick={setSelectedBooking}
             />
           </div>
         </section>
@@ -410,14 +411,22 @@ export function ScheduleClient({
           onCreated={handleCreated}
         />
       )}
-      {bookingToCancel && (
-        <CancelBookingDialog
-          booking={bookingToCancel}
-          pending={cancelPending}
-          onClose={() => setBookingToCancel(undefined)}
-          onConfirm={(scope) => void cancelBooking(scope)}
-        />
-      )}
+      {selectedBooking ? (
+        selectedBooking.canCancel ? (
+          <CancelBookingDialog
+            booking={selectedBooking}
+            pending={cancelPending}
+            onClose={() => setSelectedBooking(undefined)}
+            onConfirm={(scope) => void cancelBooking(scope)}
+          />
+        ) : userZone ? (
+          <BookingDetailsDialog
+            booking={selectedBooking}
+            userZone={userZone}
+            onClose={() => setSelectedBooking(undefined)}
+          />
+        ) : null
+      ) : null}
     </main>
   );
 }
@@ -429,7 +438,7 @@ function CalendarGrid({
   bookings,
   loading,
   onSelect,
-  onCancel,
+  onBookingClick,
 }: {
   weekStart: string;
   mobileDay?: string;
@@ -437,7 +446,7 @@ function CalendarGrid({
   bookings: BookingDto[];
   loading: boolean;
   onSelect: (slot: SelectedSlot) => void;
-  onCancel: (booking: BookingDto) => void;
+  onBookingClick: (booking: BookingDto) => void;
 }) {
   const officeWeek = DateTime.fromISO(weekStart, { zone: OFFICE_TIME_ZONE });
   const days = mobileDay
@@ -552,8 +561,9 @@ function CalendarGrid({
           <button
             key={booking.id}
             type="button"
-            onClick={() => void onCancel(booking)}
-            title={booking.canCancel ? "Click to cancel this booking" : `${booking.title} · ${booking.author.name}`}
+            onClick={() => onBookingClick(booking)}
+            title={booking.canCancel ? "Click to cancel this booking" : "View booking details"}
+            aria-label={`${booking.canCancel ? "Cancel" : "View"} ${booking.title} by ${booking.author.name}`}
             style={{
               gridColumn: dayIndex + 2,
               gridRow: `${startSlot + 2} / span ${durationSlots}`,
