@@ -7,7 +7,7 @@
 
 Roomly is a timezone-aware meeting-room reservation application built for the UA-Skills event2 competition. It combines a hand-built calendar, strict server-side booking rules, database-level race protection, weekly series, email verification, and exactly-once in-app handoff notifications.
 
-**Live demo:** production deployment is prepared for Vercel + Neon; the public URL will be added after the production database connection is authorized.
+**Live demo:** [https://roomly-ua-skills.vercel.app](https://roomly-ua-skills.vercel.app)
 
 ## Product preview
 
@@ -44,7 +44,7 @@ The seed creates six meeting rooms, ordinary reservations, and a three-occurrenc
 | Registration and sign-in | Argon2id passwords, hashed database sessions, `httpOnly` cookie | Register at `/register`; sign in with a demo account |
 | Room list | Six seeded rooms with floor and capacity | Open `/schedule` or `GET /api/rooms` |
 | Weekly room schedule | Custom CSS Grid; events show title and author | Select a room and navigate between weeks |
-| Timezone support | Office rules use `Europe/Kyiv`; browser uses its detected IANA zone | Compare the office date with the timezone badge and displayed slots |
+| Timezone support | Office rules use `Europe/Kyiv`; the browser uses its detected IANA zone and labels office days that cross a local date boundary | Compare the office date with the timezone badge and displayed slots; run the Los Angeles/Tokyo E2E cases |
 | Booking validation | Future-only, 30-minute steps, 30 minutes–4 hours, 09:00–19:00 Kyiv | Try an invalid request or run `npm run test:integration` |
 | Conflict handling | Friendly API check plus PostgreSQL GiST exclusion constraint | Run the simultaneous race test |
 | Cancellation rights | Soft cancellation; only the author may cancel | Try cancelling Alex's booking as Maria in API tests |
@@ -136,10 +136,10 @@ docker compose logs app
 ## Test matrix
 
 ```bash
-npm test                 # 20 Vitest unit tests
+npm test                 # 24 Vitest unit tests
 npm run test:integration # 5 Playwright API tests
-npm run test:e2e         # 5 Chromium UI/Axe tests
-npm run test:browser     # all 10 browser/API tests on a fresh test DB
+npm run test:e2e         # 7 Chromium UI/Axe tests
+npm run test:browser     # all 12 browser/API tests on a fresh test DB
 npm run test:race        # standalone database race proof
 npm run lint
 npm run build
@@ -161,13 +161,15 @@ Accessibility acceptance is explicit: Axe must report zero `serious` or `critica
 
 ## Deployment
 
-The production target is Vercel connected to `main` plus Neon PostgreSQL:
+Production is live on [roomly-ua-skills.vercel.app](https://roomly-ua-skills.vercel.app). Vercel is connected to GitHub `main`, so every pushed commit creates a production deployment. Runtime traffic uses Neon PostgreSQL through a pooled, `verify-full` TLS connection; migrations use the direct endpoint.
 
-1. Create/connect Neon from the Vercel Marketplace.
-2. Enable the supported `btree_gist` extension.
-3. Set pooled `DATABASE_URL` and direct `DIRECT_DATABASE_URL` in Vercel.
-4. Run `npm run db:deploy` and `npm run db:seed` against the direct URL.
-5. Verify `/api/health`, demo sign-in, create/cancel, mobile layout, and notifications.
+Production verification completed on August 6, 2026:
+
+1. All four migrations were deployed and the idempotent seed ran against Neon.
+2. The supported `btree_gist` extension and active-booking exclusion constraint are enabled.
+3. `/api/health` returned `200 {"status":"ok"}` from Vercel.
+4. Demo sign-in and a create/cancel cycle succeeded against the production database.
+5. The deployment-scoped Vercel scan reported no warning, error, or fatal runtime logs after the final smoke test.
 
 See [the 3-minute competition demo script](docs/demo-script.md) for the judging walkthrough.
 

@@ -4,7 +4,7 @@ Use a desktop viewport first, then switch DevTools to 390 × 844. Keep a termina
 
 ## 0:00–0:25 — Sign in and orient the judges
 
-1. Open the public URL or `http://localhost:3000`.
+1. Open [https://roomly-ua-skills.vercel.app](https://roomly-ua-skills.vercel.app) or `http://localhost:3000`.
 2. Sign in as `alex@room.test` / `DemoPass123!`.
 3. Point out the detected browser timezone and explain that office rules remain in `Europe/Kyiv`.
 4. Mention that sessions are database-backed, cookies are `httpOnly`, and only SHA-256 session-token hashes are stored.
@@ -56,7 +56,7 @@ npm run test:race
 
 Close with the guarantees:
 
-- 20 unit tests and 10 API/E2E/Axe tests.
+- 24 unit tests and 12 API/E2E/Axe tests.
 - PostgreSQL exclusion constraint gives exactly one race winner.
 - Weekly series creation is all-or-nothing.
 - Notification claiming is locked and uniquely deduplicated.
