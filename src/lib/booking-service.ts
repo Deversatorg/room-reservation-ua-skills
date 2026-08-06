@@ -54,7 +54,7 @@ export async function createBookings(
   if (!room) throw new BookingServiceError(404, "NOT_FOUND", "Meeting room not found.");
 
   try {
-    return await db.$transaction(async (transaction) => {
+    const transactionResult = await db.$transaction(async (transaction) => {
       const series = input.recurrence
         ? await transaction.bookingSeries.create({
             data: {
@@ -68,7 +68,7 @@ export async function createBookings(
           })
         : null;
 
-      const created = [];
+      const bookingIds: string[] = [];
       for (const occurrence of occurrences) {
         const conflict = await transaction.booking.findFirst({
           where: {
@@ -92,24 +92,37 @@ export async function createBookings(
           );
         }
 
-        created.push(
-          await transaction.booking.create({
-            data: {
-              roomId: room.id,
-              userId,
-              title: input.title,
-              startAt: occurrence.startAt,
-              endAt: occurrence.endAt,
-              seriesId: series?.id,
-              occurrenceIndex: series ? occurrence.index : undefined,
-            },
-            include: bookingInclude,
-          }),
-        );
+        const created = await transaction.booking.create({
+          data: {
+            roomId: room.id,
+            userId,
+            title: input.title,
+            startAt: occurrence.startAt,
+            endAt: occurrence.endAt,
+            seriesId: series?.id,
+            occurrenceIndex: series ? occurrence.index : undefined,
+          },
+          select: { id: true },
+        });
+        bookingIds.push(created.id);
       }
 
-      return { bookings: created, seriesId: series?.id ?? null };
+      return { bookingIds, seriesId: series?.id ?? null };
     });
+
+    // Relation includes can require multiple SQL statements. Resolve them after
+    // the interactive transaction so the adapter never overlaps work on the
+    // transaction's dedicated pg client.
+    const bookings = await db.booking.findMany({
+      where: { id: { in: transactionResult.bookingIds } },
+      include: bookingInclude,
+    });
+    const bookingsById = new Map(bookings.map((booking) => [booking.id, booking]));
+
+    return {
+      bookings: transactionResult.bookingIds.map((id) => bookingsById.get(id)!),
+      seriesId: transactionResult.seriesId,
+    };
   } catch (error) {
     if (error instanceof BookingServiceError) throw error;
     if (isOverlapConstraintError(error)) {
