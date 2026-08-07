@@ -27,6 +27,34 @@ export function intervalsOverlap(
   return firstStart < secondEnd && firstEnd > secondStart;
 }
 
+export function bookingEndTimeOptions(startTime: string) {
+  const [hours, minutes] = startTime.split(":").map(Number);
+  const startMinutes = hours * 60 + minutes;
+  const latestEndMinutes = Math.min(
+    OFFICE_END_HOUR * 60,
+    startMinutes + MAX_BOOKING_MINUTES,
+  );
+
+  return Array.from(
+    { length: Math.max(0, (latestEndMinutes - startMinutes) / SLOT_MINUTES) },
+    (_, index) => {
+      const endMinutes = startMinutes + (index + 1) * SLOT_MINUTES;
+      return `${String(Math.floor(endMinutes / 60)).padStart(2, "0")}:${String(
+        endMinutes % 60,
+      ).padStart(2, "0")}`;
+    },
+  );
+}
+
+export function canCancelBooking(
+  bookingUserId: string,
+  currentUserId: string,
+  endAt: Date,
+  now = new Date(),
+) {
+  return bookingUserId === currentUserId && endAt > now;
+}
+
 export function validateBookingWindow(
   startAt: Date,
   endAt: Date,

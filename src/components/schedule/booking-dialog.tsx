@@ -13,6 +13,7 @@ import { useMemo, useRef, useState, type FormEvent, type ReactNode } from "react
 
 import { useAccessibleDialog } from "@/hooks/use-accessible-dialog";
 import {
+  bookingEndTimeOptions,
   OFFICE_START_HOUR,
   OFFICE_TIME_ZONE,
   SLOT_MINUTES,
@@ -70,6 +71,10 @@ export function BookingDialog({
         return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
       }),
     [],
+  );
+  const endTimeOptions = useMemo(
+    () => bookingEndTimeOptions(startTime),
+    [startTime],
   );
 
   function changeStart(nextStart: string) {
@@ -227,7 +232,7 @@ export function BookingDialog({
                 onChange={(event) => setEndTime(event.target.value)}
                 className={inputClass}
               >
-                {timeOptions.slice(1).map((time) => (
+                {endTimeOptions.map((time) => (
                   <option key={time} value={time}>
                     {localDay.crossesDate
                       ? localSlotDateTimeLabel(date, time, userZone)

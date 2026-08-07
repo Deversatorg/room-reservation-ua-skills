@@ -2,6 +2,8 @@ import { DateTime } from "luxon";
 import { describe, expect, it } from "vitest";
 
 import {
+  bookingEndTimeOptions,
+  canCancelBooking,
   intervalsOverlap,
   OFFICE_TIME_ZONE,
   validateBookingWindow,
@@ -54,6 +56,44 @@ describe("intervalsOverlap", () => {
         at("2026-08-07T08:00:00Z"),
       ),
     ).toBe(false);
+  });
+});
+
+describe("bookingEndTimeOptions", () => {
+  it("offers only later times up to the four-hour limit", () => {
+    expect(bookingEndTimeOptions("13:00")).toEqual([
+      "13:30",
+      "14:00",
+      "14:30",
+      "15:00",
+      "15:30",
+      "16:00",
+      "16:30",
+      "17:00",
+    ]);
+  });
+
+  it("never offers an end after office hours", () => {
+    expect(bookingEndTimeOptions("18:00")).toEqual(["18:30", "19:00"]);
+  });
+});
+
+describe("canCancelBooking", () => {
+  const now = at("2026-08-07T10:00:00Z");
+
+  it("allows an owner to cancel a booking that has not ended", () => {
+    expect(canCancelBooking("alex", "alex", at("2026-08-07T10:30:00Z"), now)).toBe(
+      true,
+    );
+  });
+
+  it("keeps past history immutable and rejects other users", () => {
+    expect(canCancelBooking("alex", "alex", at("2026-08-07T10:00:00Z"), now)).toBe(
+      false,
+    );
+    expect(canCancelBooking("alex", "maria", at("2026-08-07T10:30:00Z"), now)).toBe(
+      false,
+    );
   });
 });
 

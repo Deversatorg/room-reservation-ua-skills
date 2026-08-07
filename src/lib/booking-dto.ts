@@ -1,5 +1,7 @@
 import "server-only";
 
+import { canCancelBooking } from "@/lib/booking-rules";
+
 type BookingRecord = {
   id: string;
   roomId: string;
@@ -14,7 +16,11 @@ type BookingRecord = {
   user: { id: string; name: string };
 };
 
-export function bookingDto(booking: BookingRecord, currentUserId: string) {
+export function bookingDto(
+  booking: BookingRecord,
+  currentUserId: string,
+  now = new Date(),
+) {
   return {
     id: booking.id,
     roomId: booking.roomId,
@@ -23,7 +29,8 @@ export function bookingDto(booking: BookingRecord, currentUserId: string) {
     endAt: booking.endAt.toISOString(),
     author: booking.user,
     room: booking.room,
-    canCancel: booking.userId === currentUserId,
+    isOwner: booking.userId === currentUserId,
+    canCancel: canCancelBooking(booking.userId, currentUserId, booking.endAt, now),
     series: booking.series
       ? {
           id: booking.series.id,

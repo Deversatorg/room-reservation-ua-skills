@@ -140,13 +140,15 @@ export async function cancelBooking(
 ) {
   const booking = await db.booking.findUnique({
     where: { id: bookingId },
-    select: { userId: true, cancelledAt: true, seriesId: true },
+    select: { userId: true, cancelledAt: true, seriesId: true, endAt: true },
   });
 
   if (!booking) throw new BookingServiceError(404, "NOT_FOUND", "Booking not found.");
   if (booking.userId !== userId) {
     throw new BookingServiceError(403, "FORBIDDEN", "You can only cancel your own bookings.");
   }
+
+  if (booking.cancelledAt) return 0;
 
   if (scope === "series" && booking.seriesId) {
     const result = await db.booking.updateMany({
@@ -161,7 +163,13 @@ export async function cancelBooking(
     return result.count;
   }
 
-  if (booking.cancelledAt) return 0;
+  if (booking.endAt <= now) {
+    throw new BookingServiceError(
+      422,
+      "PAST_TIME",
+      "Past bookings cannot be cancelled.",
+    );
+  }
   await db.booking.update({ where: { id: bookingId }, data: { cancelledAt: now } });
   return 1;
 }

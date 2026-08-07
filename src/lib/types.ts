@@ -13,6 +13,7 @@ export type BookingDto = {
   endAt: string;
   author: { id: string; name: string };
   room: { name: string; floor: number; capacity: number };
+  isOwner: boolean;
   canCancel: boolean;
   series: { id: string; occurrence: number; count: number } | null;
 };

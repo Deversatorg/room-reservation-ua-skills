@@ -1,4 +1,5 @@
 import { DateTime } from "luxon";
+import { redirect } from "next/navigation";
 
 import { ScheduleClient } from "@/components/schedule-client";
 import { OFFICE_TIME_ZONE } from "@/lib/booking-rules";
@@ -26,17 +27,34 @@ export default async function SchedulePage({
       : 0;
   const availableRooms = rooms.filter((room) => room.capacity >= initialMinCapacity);
   const requestedRoom = availableRooms.find((room) => room.id === query.room)?.id;
-  const requestedWeek = DateTime.fromISO(query.week ?? "", { zone: OFFICE_TIME_ZONE });
-  const initialWeek = requestedWeek.isValid
-    ? requestedWeek.startOf("week").toISODate()!
-    : DateTime.now().setZone(OFFICE_TIME_ZONE).startOf("week").toISODate()!;
   const requestedDay = DateTime.fromISO(query.day ?? "", { zone: OFFICE_TIME_ZONE });
   const today = DateTime.now().setZone(OFFICE_TIME_ZONE).startOf("day");
+  const requestedWeek = DateTime.fromISO(query.week ?? "", { zone: OFFICE_TIME_ZONE });
+  const initialWeek = requestedDay.isValid
+    ? requestedDay.startOf("week").toISODate()!
+    : requestedWeek.isValid
+      ? requestedWeek.startOf("week").toISODate()!
+      : today.startOf("week").toISODate()!;
   const initialDay = requestedDay.isValid
     ? requestedDay.toISODate()!
     : today.startOf("week").toISODate() === initialWeek
       ? today.toISODate()!
       : initialWeek;
+  const shouldNormalizeDates =
+    (query.week !== undefined && query.week !== initialWeek) ||
+    (query.day !== undefined && query.day !== initialDay) ||
+    (requestedDay.isValid && query.week !== initialWeek);
+
+  if (shouldNormalizeDates) {
+    const params = new URLSearchParams({ week: initialWeek, day: initialDay });
+    const roomId = requestedRoom ?? availableRooms[0]?.id;
+    if (roomId) params.set("room", roomId);
+    if (initialMinCapacity > 0) {
+      params.set("capacity", String(initialMinCapacity));
+    }
+    redirect(`/schedule?${params.toString()}`);
+  }
+
   return (
     <ScheduleClient
       rooms={rooms}

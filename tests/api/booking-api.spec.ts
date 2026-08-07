@@ -1,5 +1,6 @@
 import { expect, request as requestFactory, test } from "@playwright/test";
 
+import { createPastBookingFixture } from "../helpers/booking-fixture";
 import { futureOfficeSlot, loginApi } from "../helpers/test-data";
 
 test.describe.serial("booking API", () => {
@@ -143,5 +144,34 @@ test.describe.serial("booking API", () => {
     await winner.api.delete(`/api/bookings/${bookingId}`);
     await alex.dispose();
     await maria.dispose();
+  });
+
+  test("keeps past bookings visible but prevents cancelling them", async ({ baseURL }) => {
+    const fixture = await createPastBookingFixture();
+    const alex = await requestFactory.newContext({ baseURL });
+
+    try {
+      await loginApi(alex);
+      const from = new Date(fixture.startAt.getTime() - 60_000).toISOString();
+      const to = new Date(fixture.endAt.getTime() + 60_000).toISOString();
+      const list = await alex.get(
+        `/api/bookings?roomId=${fixture.roomId}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+      );
+      expect(list.status()).toBe(200);
+      const booking = (await list.json()).bookings.find(
+        (item: { id: string }) => item.id === fixture.bookingId,
+      );
+      expect(booking).toBeDefined();
+      expect(booking.isOwner).toBe(true);
+      expect(booking.canCancel).toBe(false);
+
+      const cancel = await alex.delete(`/api/bookings/${fixture.bookingId}`);
+      expect(cancel.status()).toBe(422);
+      expect((await cancel.json()).error.code).toBe("PAST_TIME");
+      expect(await fixture.wasCancelled()).toBe(false);
+    } finally {
+      await alex.dispose();
+      await fixture.cleanup();
+    }
   });
 });

@@ -61,7 +61,9 @@ export function BookingDetailsDialog({
         </div>
 
         <p id="booking-details-description" className="mt-4 text-sm leading-6 text-slate-600">
-          This booking belongs to another Roomly member and is available for viewing only.
+          {booking.isOwner
+            ? "This booking has ended and is kept as read-only history."
+            : "This booking belongs to another Roomly member and is available for viewing only."}
         </p>
 
         <dl className="mt-5 divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-slate-50 px-4">

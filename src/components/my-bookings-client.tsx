@@ -241,11 +241,12 @@ function BookingRow({
 }) {
   const start = DateTime.fromISO(booking.startAt).setZone(userZone);
   const end = DateTime.fromISO(booking.endAt).setZone(userZone);
-  const officeWeek = DateTime.fromISO(booking.startAt)
-    .setZone(OFFICE_TIME_ZONE)
+  const officeStart = DateTime.fromISO(booking.startAt).setZone(OFFICE_TIME_ZONE);
+  const officeWeek = officeStart
     .startOf("week")
     .toISODate();
-  const href = `/schedule?room=${booking.roomId}&week=${officeWeek}`;
+  const officeDay = officeStart.toISODate();
+  const href = `/schedule?room=${booking.roomId}&week=${officeWeek}&day=${officeDay}`;
 
   return (
     <article className="group flex flex-col gap-4 rounded-3xl border border-white/80 bg-white/90 p-4 shadow-[0_8px_30px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/70 transition hover:-translate-y-0.5 hover:ring-indigo-200 hover:shadow-[0_14px_36px_rgba(79,70,229,0.10)] sm:flex-row sm:items-center sm:p-5">

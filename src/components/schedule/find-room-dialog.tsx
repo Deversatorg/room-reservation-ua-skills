@@ -63,6 +63,7 @@ export function FindRoomDialog({
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<string>();
   const [result, setResult] = useState<AvailabilitySearchResult>();
+  const searchVersion = useRef(0);
   const dialogRef = useRef<HTMLDivElement>(null);
   useAccessibleDialog(dialogRef, onClose, pending, returnFocus);
 
@@ -80,6 +81,7 @@ export function FindRoomDialog({
   }, [durationMinutes]);
 
   function changeDuration(nextDuration: number) {
+    invalidateResults();
     setDurationMinutes(nextDuration);
     const lastStart = OFFICE_END_HOUR * 60 - nextDuration;
     if (timeToMinutes(startTime) > lastStart) {
@@ -87,8 +89,17 @@ export function FindRoomDialog({
     }
   }
 
+  function invalidateResults() {
+    searchVersion.current += 1;
+    setPending(false);
+    setMessage(undefined);
+    setResult(undefined);
+  }
+
   async function searchAvailability(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const version = searchVersion.current + 1;
+    searchVersion.current = version;
     setPending(true);
     setMessage(undefined);
     setResult(undefined);
@@ -105,15 +116,18 @@ export function FindRoomDialog({
       const data = (await response.json()) as AvailabilitySearchResult & {
         error?: { message?: string };
       };
+      if (version !== searchVersion.current) return;
       if (!response.ok) {
         setMessage(data.error?.message ?? "Could not search room availability.");
         return;
       }
       setResult(data);
     } catch {
-      setMessage("The server is unavailable. Please try again.");
+      if (version === searchVersion.current) {
+        setMessage("The server is unavailable. Please try again.");
+      }
     } finally {
-      setPending(false);
+      if (version === searchVersion.current) setPending(false);
     }
   }
 
@@ -175,14 +189,20 @@ export function FindRoomDialog({
               required
               min={DateTime.now().setZone(OFFICE_TIME_ZONE).toISODate()!}
               value={date}
-              onChange={(event) => setDate(event.target.value)}
+              onChange={(event) => {
+                invalidateResults();
+                setDate(event.target.value);
+              }}
               className={inputClass}
             />
           </FinderField>
           <FinderField label="Starts" icon={<Clock3 className="size-4" />}>
             <select
               value={startTime}
-              onChange={(event) => setStartTime(event.target.value)}
+              onChange={(event) => {
+                invalidateResults();
+                setStartTime(event.target.value);
+              }}
               className={inputClass}
             >
               {timeOptions.map((time) => (
@@ -212,7 +232,10 @@ export function FindRoomDialog({
               min={1}
               max={100}
               value={minCapacity}
-              onChange={(event) => setMinCapacity(Number(event.target.value))}
+              onChange={(event) => {
+                invalidateResults();
+                setMinCapacity(Number(event.target.value));
+              }}
               className={inputClass}
             />
           </FinderField>
@@ -254,7 +277,7 @@ export function FindRoomDialog({
                       key={`${option.room.id}-${option.startAt}`}
                       option={option}
                       userZone={userZone}
-                      onSelect={() => onSelect(option, minCapacity)}
+                      onSelect={() => onSelect(option, result!.requested.minCapacity)}
                     />
                   ))}
                 </div>
