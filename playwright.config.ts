@@ -1,6 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3100";
+const testOrigin = new URL(baseURL);
 
 export default defineConfig({
   testDir: "./tests",
@@ -16,6 +17,21 @@ export default defineConfig({
     baseURL,
     locale: "en-US",
     timezoneId: "Europe/Warsaw",
+    storageState: {
+      cookies: [
+        {
+          name: "roomly_locale",
+          value: "en",
+          domain: testOrigin.hostname,
+          path: "/",
+          expires: -1,
+          httpOnly: true,
+          secure: testOrigin.protocol === "https:",
+          sameSite: "Lax",
+        },
+      ],
+      origins: [],
+    },
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },

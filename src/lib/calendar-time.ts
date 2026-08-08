@@ -29,32 +29,38 @@ export function localSlotDateTimeLabel(
   officeDate: string,
   officeTime: string,
   userZone: string,
+  locale = "en",
 ) {
-  return officeSlotInUserZone(officeDate, officeTime, userZone).toFormat(
-    "cccc, LLLL d · HH:mm",
-  );
+  const local = officeSlotInUserZone(officeDate, officeTime, userZone).setLocale(locale);
+  const localDate = local.toLocaleString({
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  });
+  return `${localDate} · ${local.toFormat("HH:mm")}`;
 }
 
 export function getLocalOfficeDayPresentation(
   officeDate: string,
   userZone: string,
+  locale = "en",
 ) {
   const start = officeSlotInUserZone(
     officeDate,
     `${String(OFFICE_START_HOUR).padStart(2, "0")}:00`,
     userZone,
-  );
+  ).setLocale(locale);
   const lastSlotMinutes = OFFICE_END_HOUR * 60 - SLOT_MINUTES;
   const lastSlot = officeSlotInUserZone(
     officeDate,
     `${String(Math.floor(lastSlotMinutes / 60)).padStart(2, "0")}:${String(lastSlotMinutes % 60).padStart(2, "0")}`,
     userZone,
-  );
+  ).setLocale(locale);
   const end = officeSlotInUserZone(
     officeDate,
     `${String(OFFICE_END_HOUR).padStart(2, "0")}:00`,
     userZone,
-  );
+  ).setLocale(locale);
   const crossesDate = start.toISODate() !== lastSlot.toISODate();
 
   return {
@@ -63,11 +69,23 @@ export function getLocalOfficeDayPresentation(
       ? `${start.toFormat("ccc")} → ${lastSlot.toFormat("ccc")}`
       : start.toFormat("ccc"),
     headerDate: crossesDate
-      ? `${start.toFormat("LLL d")} → ${lastSlot.toFormat("LLL d")}`
+      ? `${shortDate(start)} → ${shortDate(lastSlot)}`
       : start.toFormat("d"),
     longDate: crossesDate
-      ? `${start.toFormat("cccc, LLLL d")} → ${lastSlot.toFormat("cccc, LLLL d")}`
-      : start.toFormat("cccc, LLLL d"),
+      ? `${longDate(start)} → ${longDate(lastSlot)}`
+      : longDate(start),
     localWindow: `${start.toFormat("HH:mm")}–${end.toFormat("HH:mm")}`,
   };
+}
+
+function longDate(value: DateTime) {
+  return value.toLocaleString({
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  });
+}
+
+function shortDate(value: DateTime) {
+  return value.toLocaleString({ month: "short", day: "numeric" });
 }

@@ -12,6 +12,7 @@ import {
   Users,
   X,
 } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import {
   useMemo,
   useRef,
@@ -21,6 +22,7 @@ import {
 } from "react";
 
 import { useAccessibleDialog } from "@/hooks/use-accessible-dialog";
+import type { ApiErrorCode } from "@/lib/api";
 import {
   OFFICE_END_HOUR,
   OFFICE_START_HOUR,
@@ -53,6 +55,9 @@ export function FindRoomDialog({
   onClose: () => void;
   onSelect: (option: AvailabilityOption, minCapacity: number) => void;
 }) {
+  const t = useTranslations("Finder");
+  const tCommon = useTranslations("Common");
+  const tApi = useTranslations("ApiErrors");
   const initialSearch = getInitialSearch(initialDate);
   const [date, setDate] = useState(initialSearch.date);
   const [startTime, setStartTime] = useState(initialSearch.startTime);
@@ -114,17 +119,17 @@ export function FindRoomDialog({
     try {
       const response = await fetch(`/api/availability?${params.toString()}`);
       const data = (await response.json()) as AvailabilitySearchResult & {
-        error?: { message?: string };
+        error?: { code?: ApiErrorCode };
       };
       if (version !== searchVersion.current) return;
       if (!response.ok) {
-        setMessage(data.error?.message ?? "Could not search room availability.");
+        setMessage(data.error?.code ? tApi(data.error.code) : t("searchFailed"));
         return;
       }
       setResult(data);
     } catch {
       if (version === searchVersion.current) {
-        setMessage("The server is unavailable. Please try again.");
+        setMessage(tCommon("serverUnavailable"));
       }
     } finally {
       if (version === searchVersion.current) setPending(false);
@@ -138,10 +143,10 @@ export function FindRoomDialog({
     : [];
   const resultHeading = result
     ? result.exact.length > 0
-      ? `${result.exact.length} room${result.exact.length === 1 ? "" : "s"} available at your time`
+      ? t("exactResults", { count: result.exact.length })
       : result.alternatives.length > 0
-        ? "Closest available options"
-        : "No matching rooms found"
+        ? t("alternatives")
+        : t("noResults")
     : undefined;
 
   return (
@@ -162,17 +167,17 @@ export function FindRoomDialog({
               id="find-room-dialog-title"
               className="text-xl font-semibold text-slate-950"
             >
-              Find a room
+              {t("title")}
             </h2>
             <p className="mt-1 text-sm text-slate-500">
-              Choose when and how many people. Roomly will suggest the best fit.
+              {t("description")}
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
             className="ml-auto grid size-9 shrink-0 place-items-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
-            aria-label="Close"
+            aria-label={tCommon("close")}
           >
             <X className="size-5" />
           </button>
@@ -182,7 +187,7 @@ export function FindRoomDialog({
           className="mt-6 grid gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2"
           onSubmit={searchAvailability}
         >
-          <FinderField label="Office date" icon={<CalendarDays className="size-4" />}>
+          <FinderField label={t("officeDate")} icon={<CalendarDays className="size-4" />}>
             <input
               data-dialog-initial-focus
               type="date"
@@ -196,7 +201,7 @@ export function FindRoomDialog({
               className={inputClass}
             />
           </FinderField>
-          <FinderField label="Starts" icon={<Clock3 className="size-4" />}>
+          <FinderField label={t("starts")} icon={<Clock3 className="size-4" />}>
             <select
               value={startTime}
               onChange={(event) => {
@@ -207,12 +212,12 @@ export function FindRoomDialog({
             >
               {timeOptions.map((time) => (
                 <option key={time} value={time}>
-                  {time} Kyiv
+                  {t("kyivTime", { time })}
                 </option>
               ))}
             </select>
           </FinderField>
-          <FinderField label="Duration" icon={<Clock3 className="size-4" />}>
+          <FinderField label={t("duration")} icon={<Clock3 className="size-4" />}>
             <select
               value={durationMinutes}
               onChange={(event) => changeDuration(Number(event.target.value))}
@@ -220,12 +225,16 @@ export function FindRoomDialog({
             >
               {DURATION_OPTIONS.map((duration) => (
                 <option key={duration} value={duration}>
-                  {formatDuration(duration)}
+                  {duration < 60
+                    ? t("minutes", { count: duration })
+                    : duration % 60 === 0
+                      ? t("hours", { count: duration / 60 })
+                      : t("hoursMinutes", { hours: Math.floor(duration / 60), minutes: duration % 60 })}
                 </option>
               ))}
             </select>
           </FinderField>
-          <FinderField label="People" icon={<Users className="size-4" />}>
+          <FinderField label={t("people")} icon={<Users className="size-4" />}>
             <input
               type="number"
               required
@@ -249,7 +258,7 @@ export function FindRoomDialog({
             ) : (
               <Sparkles className="size-4" />
             )}
-            {pending ? "Searching…" : "Find available rooms"}
+            {pending ? t("searching") : t("submit")}
           </button>
         </form>
 
@@ -267,7 +276,7 @@ export function FindRoomDialog({
               </div>
               {result && result.exact.length === 0 && result.alternatives.length > 0 ? (
                 <p className="mt-1 text-sm text-slate-500">
-                  Your requested slot is busy, so these are the nearest matches.
+                  {t("busyHint")}
                 </p>
               ) : null}
               {options.length > 0 ? (
@@ -283,7 +292,7 @@ export function FindRoomDialog({
                 </div>
               ) : result ? (
                 <p className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-600">
-                  Try a smaller capacity or a different date. We searched the next 14 days.
+                  {t("emptyHint")}
                 </p>
               ) : null}
             </div>
@@ -303,10 +312,13 @@ function AvailabilityCard({
   userZone: string;
   onSelect: () => void;
 }) {
+  const locale = useLocale();
+  const t = useTranslations("Finder");
   const localStart = localSlotDateTimeLabel(
     option.officeDate,
     option.startTime,
     userZone,
+    locale,
   );
   const localEnd = localSlotTimeLabel(option.officeDate, option.endTime, userZone);
 
@@ -314,7 +326,7 @@ function AvailabilityCard({
     <button
       type="button"
       onClick={onSelect}
-      aria-label={`Book ${option.room.name} on ${localStart}`}
+      aria-label={t("bookOption", { room: option.room.name, date: localStart })}
       className="group rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-indigo-200 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
     >
       <span className="flex items-start gap-3">
@@ -324,7 +336,7 @@ function AvailabilityCard({
         <span className="min-w-0 flex-1">
           <span className="block font-semibold text-slate-950">{option.room.name}</span>
           <span className="mt-0.5 block text-xs text-slate-500">
-            Floor {option.room.floor} · {option.room.capacity} people
+            {t("roomMeta", { floor: option.room.floor, capacity: option.room.capacity })}
           </span>
         </span>
         <ArrowRight className="mt-2 size-4 text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-indigo-600" />
@@ -333,7 +345,7 @@ function AvailabilityCard({
         {localStart}–{localEnd}
       </span>
       <span className="mt-1 block text-xs text-slate-500">
-        Kyiv: {option.officeDate} · {option.startTime}–{option.endTime}
+        {t("kyivRange", { date: option.officeDate, start: option.startTime, end: option.endTime })}
       </span>
     </button>
   );
@@ -376,15 +388,6 @@ function getInitialSearch(initialDate: string) {
   }
 
   return { date, startTime: minutesToTime(startMinutes) };
-}
-
-function formatDuration(minutes: number) {
-  if (minutes < 60) return `${minutes} minutes`;
-  const hours = Math.floor(minutes / 60);
-  const remainder = minutes % 60;
-  return remainder === 0
-    ? `${hours} hour${hours === 1 ? "" : "s"}`
-    : `${hours}h ${remainder}m`;
 }
 
 function timeToMinutes(time: string) {

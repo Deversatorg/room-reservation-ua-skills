@@ -16,6 +16,7 @@ import {
   RefreshCw,
   Users,
 } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import {
   useEffect,
@@ -44,6 +45,7 @@ import {
   getLocalOfficeDayPresentation,
   localSlotTimeLabel,
 } from "@/lib/calendar-time";
+import type { ApiErrorCode } from "@/lib/api";
 import type { AvailabilityOption, BookingDto, RoomDto } from "@/lib/types";
 
 const ROOM_ACCENTS = [
@@ -69,6 +71,10 @@ export function ScheduleClient({
   initialMinCapacity: number;
 }) {
   const router = useRouter();
+  const locale = useLocale();
+  const t = useTranslations("Schedule");
+  const tCommon = useTranslations("Common");
+  const tApi = useTranslations("ApiErrors");
   const [roomId, setRoomId] = useState(initialRoomId);
   const [weekStart, setWeekStart] = useState(initialWeek);
   const [selectedDay, setSelectedDay] = useState(initialDay);
@@ -95,7 +101,7 @@ export function ScheduleClient({
     rooms.findIndex((room) => room.id === selectedRoom?.id),
   );
   const mobileLocalDay = userZone
-    ? getLocalOfficeDayPresentation(selectedDay, userZone)
+    ? getLocalOfficeDayPresentation(selectedDay, userZone, locale)
     : null;
   const touchStart = useRef<{ x: number; y: number } | undefined>(undefined);
 
@@ -118,14 +124,16 @@ export function ScheduleClient({
         );
         const data = (await response.json()) as {
           bookings?: BookingDto[];
-          error?: { message?: string };
+          error?: { code?: ApiErrorCode };
         };
 
-        if (!response.ok) throw new Error(data.error?.message ?? "Could not load bookings.");
+        if (!response.ok) {
+          throw new Error(data.error?.code ? tApi(data.error.code) : t("loadFailed"));
+        }
         setBookings(data.bookings ?? []);
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") return;
-        setLoadError(error instanceof Error ? error.message : "Could not load bookings.");
+        setLoadError(error instanceof Error ? error.message : t("loadFailed"));
       } finally {
         if (!controller.signal.aborted) setLoading(false);
       }
@@ -133,7 +141,7 @@ export function ScheduleClient({
 
     void loadBookings();
     return () => controller.abort();
-  }, [roomId, weekStart, refreshKey]);
+  }, [roomId, weekStart, refreshKey, t, tApi]);
 
   function updateLocation(
     nextRoomId: string,
@@ -214,15 +222,15 @@ export function ScheduleClient({
         { method: "DELETE" },
       );
       if (!response.ok) {
-        const data = (await response.json()) as { error?: { message?: string } };
-        window.alert(data.error?.message ?? "Could not cancel the booking.");
+        const data = (await response.json()) as { error?: { code?: ApiErrorCode } };
+        window.alert(data.error?.code ? tApi(data.error.code) : t("cancelFailed"));
         return;
       }
 
       setSelectedBooking(undefined);
       setRefreshKey((value) => value + 1);
     } catch {
-      window.alert("The server is unavailable. Please try again.");
+      window.alert(tCommon("serverUnavailable"));
     } finally {
       setCancelPending(false);
     }
@@ -279,48 +287,48 @@ export function ScheduleClient({
         <div>
           <p className="inline-flex items-center gap-2 rounded-full border border-emerald-200/80 bg-emerald-50/80 px-3 py-1 text-xs font-bold uppercase tracking-[0.12em] text-emerald-700">
             <span className="soft-pulse size-2 rounded-full bg-emerald-500" />
-            Live availability
+            {t("live")}
           </p>
           <h1 className="mt-3 text-3xl font-semibold tracking-[-0.035em] text-slate-950 sm:text-4xl">
-            Meeting room schedule
+            {t("title")}
           </h1>
           <div className="mt-2 hidden flex-wrap items-center gap-x-5 gap-y-1 text-sm text-slate-500 sm:flex">
             <span className="inline-flex items-center gap-1.5">
               <Building2 className="size-4 text-indigo-500" />
-              {filteredRooms.length} room{filteredRooms.length === 1 ? "" : "s"} in view
+              {t("roomsInView", { count: filteredRooms.length })}
             </span>
             <span className="inline-flex items-center gap-1.5">
               <Clock3 className="size-4 text-indigo-500" />
-              09:00–19:00 Kyiv office time
+              {t("officeHours")}
             </span>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <label className="inline-flex h-10 items-center gap-2 rounded-xl border border-white/80 bg-white/90 px-3 text-sm text-slate-600 shadow-[0_4px_16px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/70 backdrop-blur">
             <SlidersHorizontal className="size-4 text-indigo-500" />
-            <span className="sr-only sm:not-sr-only">Minimum capacity</span>
+            <span className="sr-only sm:not-sr-only">{t("minimumCapacity")}</span>
             <select
-              aria-label="Minimum room capacity"
+              aria-label={t("minimumCapacityLabel")}
               value={minCapacity}
               onChange={(event) => changeCapacity(Number(event.target.value))}
               className="bg-transparent font-semibold text-slate-700 outline-none"
             >
-              <option value={0}>Any size</option>
+              <option value={0}>{t("anySize")}</option>
               {[4, 6, 8, 10, 12, 16].map((capacity) => (
-                <option key={capacity} value={capacity}>{capacity}+ people</option>
+                <option key={capacity} value={capacity}>{t("capacityOption", { count: capacity })}</option>
               ))}
             </select>
           </label>
           <span className="inline-flex items-center gap-2 rounded-xl border border-white/80 bg-white/90 px-3 py-2 text-sm text-slate-600 shadow-[0_4px_16px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/70 backdrop-blur">
             <Globe2 className="size-4 text-indigo-500" />
-            {userZone ?? "Detecting timezone…"}
+            {userZone ?? tCommon("detectingTimezone")}
           </span>
           <button
             type="button"
             onClick={openFinder}
             className="inline-flex h-10 items-center gap-2 rounded-xl border border-indigo-200 bg-white px-4 text-sm font-semibold text-indigo-700 shadow-[0_4px_16px_rgba(79,70,229,0.08)] transition hover:-translate-y-0.5 hover:border-indigo-300 hover:bg-indigo-50"
           >
-            <Search className="size-4" /> Find a room
+            <Search className="size-4" /> {t("findRoom")}
           </button>
           <button
             type="button"
@@ -332,7 +340,7 @@ export function ScheduleClient({
             }
             className="inline-flex h-10 items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 text-sm font-semibold text-white shadow-lg shadow-indigo-600/20 transition hover:-translate-y-0.5 hover:shadow-xl hover:shadow-indigo-600/25"
           >
-            <Plus className="size-4" /> New booking
+            <Plus className="size-4" /> {t("newBooking")}
           </button>
         </div>
       </div>
@@ -340,7 +348,7 @@ export function ScheduleClient({
       <div className="ui-enter mt-6 rounded-3xl border border-white/80 bg-white/90 p-3 shadow-[0_10px_30px_rgba(15,23,42,0.08)] ring-1 ring-slate-200/70 backdrop-blur md:hidden">
         <label className="block text-xs font-bold uppercase tracking-[0.14em] text-slate-600">
           <span className="flex items-center gap-2 px-1">
-            <Building2 className="size-4 text-indigo-500" /> Meeting room
+            <Building2 className="size-4 text-indigo-500" /> {t("meetingRoom")}
           </span>
           <select
             value={roomId}
@@ -349,7 +357,7 @@ export function ScheduleClient({
           >
             {filteredRooms.map((room) => (
               <option key={room.id} value={room.id}>
-                {room.name} · floor {room.floor} · {room.capacity} people
+                {t("roomOption", { name: room.name, floor: room.floor, capacity: room.capacity })}
               </option>
             ))}
           </select>
@@ -360,7 +368,7 @@ export function ScheduleClient({
         <aside className="hidden rounded-3xl border border-white/80 bg-white/90 p-3 shadow-[0_12px_40px_rgba(15,23,42,0.08)] ring-1 ring-slate-200/70 backdrop-blur md:block lg:sticky lg:top-24 lg:self-start">
           <div className="flex items-center justify-between px-2 pb-3 pt-1">
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-600">
-              Meeting rooms
+              {t("meetingRooms")}
             </p>
             <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">
               {filteredRooms.length}
@@ -398,7 +406,7 @@ export function ScheduleClient({
                         }`}
                       >
                         <span className="inline-flex items-center gap-1">
-                          <MapPin className="size-3" /> Floor {room.floor}
+                          <MapPin className="size-3" /> {tCommon("floor", { floor: room.floor })}
                         </span>
                         <span className="inline-flex items-center gap-1">
                           <Users className="size-3" /> {room.capacity}
@@ -425,16 +433,16 @@ export function ScheduleClient({
                 {isMobile
                   ? `${mobileLocalDay?.longDate ?? selectedDay} · `
                   : ""}
-                Office timezone: {OFFICE_TIME_ZONE}
+                {tCommon("officeTimezone", { timezone: OFFICE_TIME_ZONE })}
               </p>
             </div>
             <div className="ml-auto flex items-center gap-3">
               <div className="hidden items-center gap-3 text-[11px] font-semibold text-slate-500 xl:flex">
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="size-2 rounded-full bg-emerald-400" /> Available
+                  <span className="size-2 rounded-full bg-emerald-400" /> {t("available")}
                 </span>
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="size-2 rounded-full bg-indigo-500" /> Booked
+                  <span className="size-2 rounded-full bg-indigo-500" /> {t("booked")}
                 </span>
               </div>
               <div className="flex items-center gap-1 rounded-xl border border-slate-200/80 bg-white p-1 shadow-sm">
@@ -442,7 +450,7 @@ export function ScheduleClient({
                 type="button"
                 onClick={() => (isMobile ? moveDay(-1) : moveWeek(-1))}
                 className="grid size-8 place-items-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-950"
-                aria-label={isMobile ? "Previous day" : "Previous week"}
+                aria-label={isMobile ? t("previousDay") : t("previousWeek")}
               >
                 <ChevronLeft className="size-5" />
               </button>
@@ -451,13 +459,13 @@ export function ScheduleClient({
                 onClick={goToday}
                 className="h-8 rounded-lg bg-slate-950 px-3 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800"
               >
-                Today
+                {t("today")}
               </button>
               <button
                 type="button"
                 onClick={() => (isMobile ? moveDay(1) : moveWeek(1))}
                 className="grid size-8 place-items-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-950"
-                aria-label={isMobile ? "Next day" : "Next week"}
+                aria-label={isMobile ? t("nextDay") : t("nextWeek")}
               >
                 <ChevronRight className="size-5" />
               </button>
@@ -473,7 +481,7 @@ export function ScheduleClient({
                 onClick={() => setRefreshKey((value) => value + 1)}
                 className="ml-auto inline-flex items-center gap-1 font-semibold"
               >
-                <RefreshCw className="size-4" /> Retry
+                <RefreshCw className="size-4" /> {tCommon("retry")}
               </button>
             </div>
           )}
@@ -481,7 +489,7 @@ export function ScheduleClient({
           <div
             className={isMobile ? "overflow-hidden" : "overflow-x-auto"}
             role="region"
-            aria-label={isMobile ? "Daily meeting room calendar" : "Weekly meeting room calendar"}
+            aria-label={isMobile ? t("dailyCalendar") : t("weeklyCalendar")}
             tabIndex={isMobile ? undefined : 0}
             onTouchStart={startSwipe}
             onTouchEnd={endSwipe}
@@ -566,6 +574,8 @@ function CalendarGrid({
   onSelect: (slot: SelectedSlot) => void;
   onBookingClick: (booking: BookingDto) => void;
 }) {
+  const locale = useLocale();
+  const t = useTranslations("Schedule");
   const officeWeek = DateTime.fromISO(weekStart, { zone: OFFICE_TIME_ZONE });
   const days = mobileDay
     ? [DateTime.fromISO(mobileDay, { zone: OFFICE_TIME_ZONE })]
@@ -597,7 +607,7 @@ function CalendarGrid({
     >
       <div className="sticky left-0 z-30 bg-slate-50/95" />
       {days.map((day, dayIndex) => {
-        const localDay = getLocalOfficeDayPresentation(day.toISODate()!, userZone);
+        const localDay = getLocalOfficeDayPresentation(day.toISODate()!, userZone, locale);
         const isToday = day.toISODate() === nowOffice.toISODate();
         return (
           <div
@@ -637,7 +647,7 @@ function CalendarGrid({
                 zone: OFFICE_TIME_ZONE,
               });
               const slotEnd = slotStart.plus({ minutes: SLOT_MINUTES });
-              const localSlot = slotStart.setZone(userZone);
+              const localSlot = slotStart.setZone(userZone).setLocale(locale);
               const occupied = bookings.some(
                 (booking) =>
                   DateTime.fromISO(booking.startAt) < slotEnd &&
@@ -662,7 +672,10 @@ function CalendarGrid({
                       ? "after:absolute after:left-0 after:right-0 after:top-0 after:h-0.5 after:bg-rose-500 after:shadow-[0_0_8px_rgba(244,63,94,0.65)]"
                       : ""
                   }`}
-                  aria-label={`Book ${localSlot.toFormat("HH:mm")} on ${localSlot.toFormat("cccc, LLLL d")}`}
+                  aria-label={t("bookSlot", {
+                    time: localSlot.toFormat("HH:mm"),
+                    date: localSlot.toLocaleString({ weekday: "long", month: "long", day: "numeric" }),
+                  })}
                 />
               );
             })}
@@ -673,10 +686,11 @@ function CalendarGrid({
       {bookings.map((booking) => {
         const startOffice = DateTime.fromISO(booking.startAt).setZone(OFFICE_TIME_ZONE);
         const endOffice = DateTime.fromISO(booking.endAt).setZone(OFFICE_TIME_ZONE);
-        const startLocal = DateTime.fromISO(booking.startAt).setZone(userZone);
+        const startLocal = DateTime.fromISO(booking.startAt).setZone(userZone).setLocale(locale);
         const localDay = getLocalOfficeDayPresentation(
           startOffice.toISODate()!,
           userZone,
+          locale,
         );
         const dayIndex = Math.floor(startOffice.startOf("day").diff(gridStart, "days").days);
         const startSlot =
@@ -691,8 +705,10 @@ function CalendarGrid({
             key={booking.id}
             type="button"
             onClick={() => onBookingClick(booking)}
-            title={booking.canCancel ? "Click to cancel this booking" : "View booking details"}
-            aria-label={`${booking.canCancel ? "Cancel" : "View"} ${booking.title} by ${booking.author.name}`}
+            title={booking.canCancel ? t("cancelBookingTitle") : t("viewBookingTitle")}
+            aria-label={booking.canCancel
+              ? t("cancelBookingLabel", { title: booking.title, author: booking.author.name })
+              : t("viewBookingLabel", { title: booking.title, author: booking.author.name })}
             style={{
               gridColumn: dayIndex + 2,
               gridRow: `${startSlot + 2} / span ${durationSlots}`,
@@ -710,7 +726,7 @@ function CalendarGrid({
             </span>
             {booking.series && (
               <span className="mt-0.5 block truncate text-[10px] font-semibold opacity-70">
-                Weekly · {booking.series.occurrence}/{booking.series.count}
+                {t("weeklyOccurrence", { occurrence: booking.series.occurrence, count: booking.series.count })}
               </span>
             )}
           </button>
@@ -720,7 +736,7 @@ function CalendarGrid({
       {loading && (
         <div className="pointer-events-none absolute inset-0 z-40 grid place-items-center bg-white/55 backdrop-blur-[2px]">
           <span className="inline-flex items-center gap-2 rounded-2xl border border-white/80 bg-white/95 px-4 py-2.5 text-sm font-semibold text-slate-600 shadow-xl ring-1 ring-slate-200/70">
-            <LoaderCircle className="size-4 animate-spin text-indigo-600" /> Loading schedule…
+            <LoaderCircle className="size-4 animate-spin text-indigo-600" /> {t("loading")}
           </span>
         </div>
       )}
@@ -735,22 +751,23 @@ function EmptyRooms({
   filtered: boolean;
   onReset: () => void;
 }) {
+  const t = useTranslations("Schedule");
   return (
     <main className="mx-auto max-w-2xl px-4 py-24 text-center">
       <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-indigo-50 text-indigo-600">
         <CalendarPlus className="size-6" />
       </span>
       <h1 className="mt-5 text-2xl font-semibold text-slate-950">
-        {filtered ? "No rooms match this capacity" : "No rooms available"}
+        {filtered ? t("noCapacityTitle") : t("noRoomsTitle")}
       </h1>
       <p className="mt-2 text-slate-500">
         {filtered
-          ? "Lower the minimum capacity to see more meeting rooms."
-          : "Run the database seed to create the office rooms."}
+          ? t("noCapacityDescription")
+          : t("noRoomsDescription")}
       </p>
       {filtered && (
         <button type="button" onClick={onReset} className="mt-5 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white">
-          Show every room
+          {t("showAll")}
         </button>
       )}
     </main>

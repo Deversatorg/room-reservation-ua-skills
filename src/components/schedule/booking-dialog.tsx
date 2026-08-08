@@ -9,9 +9,11 @@ import {
   Repeat2,
   X,
 } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import { useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 
 import { useAccessibleDialog } from "@/hooks/use-accessible-dialog";
+import type { ApiErrorCode } from "@/lib/api";
 import {
   bookingEndTimeOptions,
   OFFICE_START_HOUR,
@@ -50,6 +52,11 @@ export function BookingDialog({
   onClose: () => void;
   onCreated: (roomId: string, officeDate: string) => void;
 }) {
+  const locale = useLocale();
+  const t = useTranslations("BookingDialog");
+  const tCommon = useTranslations("Common");
+  const tApi = useTranslations("ApiErrors");
+  const tValidation = useTranslations("Validation");
   const [roomId, setRoomId] = useState(initialRoomId);
   const [date, setDate] = useState(slot.officeDate);
   const [startTime, setStartTime] = useState(slot.startTime);
@@ -61,7 +68,7 @@ export function BookingDialog({
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [repeatWeekly, setRepeatWeekly] = useState(false);
   const [occurrenceCount, setOccurrenceCount] = useState(8);
-  const localDay = getLocalOfficeDayPresentation(date, userZone);
+  const localDay = getLocalOfficeDayPresentation(date, userZone, locale);
   const dialogRef = useRef<HTMLDivElement>(null);
   useAccessibleDialog(dialogRef, onClose, pending, returnFocus);
   const timeOptions = useMemo(
@@ -119,18 +126,24 @@ export function BookingDialog({
         }),
       });
       const data = (await response.json()) as {
-        error?: { message?: string; fieldErrors?: Record<string, string[]> };
+        error?: { code?: ApiErrorCode; fieldErrors?: Record<string, string[]> };
       };
 
       if (!response.ok) {
-        setMessage(data.error?.message ?? "Could not create the booking.");
-        setFieldErrors(data.error?.fieldErrors ?? {});
+        setMessage(data.error?.code ? tApi(data.error.code) : t("createFailed"));
+        const errors = data.error?.fieldErrors;
+        setFieldErrors({
+          ...(errors?.title ? { title: [tValidation("title")] } : {}),
+          ...(errors?.roomId ? { roomId: [tValidation("roomId")] } : {}),
+          ...(errors?.startAt ? { startAt: [tValidation("startAt")] } : {}),
+          ...(errors?.endAt ? { endAt: [tValidation("endAt")] } : {}),
+        });
         return;
       }
 
       onCreated(roomId, date);
     } catch {
-      setMessage("The server is unavailable. Please try again.");
+      setMessage(tCommon("serverUnavailable"));
     } finally {
       setPending(false);
     }
@@ -154,35 +167,35 @@ export function BookingDialog({
               id="booking-dialog-title"
               className="text-xl font-semibold text-slate-950"
             >
-              New booking
+              {t("title")}
             </h2>
             <p className="mt-1 text-sm text-slate-500">
-              Meeting times are shown in {userZone}.
+              {t("timezoneHint", { timezone: userZone })}
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
             className="ml-auto grid size-9 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700"
-            aria-label="Close"
+            aria-label={tCommon("close")}
           >
             <X className="size-5" />
           </button>
         </div>
 
         <form className="mt-6 space-y-4" onSubmit={submit}>
-          <DialogField label="Title" error={fieldErrors.title?.[0]}>
+          <DialogField label={t("meetingTitle")} error={fieldErrors.title?.[0]}>
             <input
               name="title"
               autoFocus
               data-dialog-initial-focus
               maxLength={100}
-              placeholder="e.g. Weekly product sync"
+              placeholder={t("titlePlaceholder")}
               className={inputClass}
             />
           </DialogField>
 
-          <DialogField label="Meeting room" error={fieldErrors.roomId?.[0]}>
+          <DialogField label={t("room")} error={fieldErrors.roomId?.[0]}>
             <select
               value={roomId}
               onChange={(event) => setRoomId(event.target.value)}
@@ -190,13 +203,13 @@ export function BookingDialog({
             >
               {rooms.map((room) => (
                 <option key={room.id} value={room.id}>
-                  {room.name} · floor {room.floor} · {room.capacity} people
+                  {room.name} · {tCommon("floor", { floor: room.floor })} · {tCommon("people", { count: room.capacity })}
                 </option>
               ))}
             </select>
           </DialogField>
 
-          <DialogField label="Office calendar date" error={fieldErrors.startAt?.[0]}>
+          <DialogField label={t("officeDate")} error={fieldErrors.startAt?.[0]}>
             <input
               type="date"
               value={date}
@@ -207,11 +220,11 @@ export function BookingDialog({
           </DialogField>
 
           <p className="-mt-2 text-xs text-slate-500">
-            Local availability: {localDay.longDate} · {localDay.localWindow}
+            {t("localAvailability", { date: localDay.longDate, window: localDay.localWindow })}
           </p>
 
           <div className="grid grid-cols-2 gap-3">
-            <DialogField label="Starts" error={fieldErrors.startAt?.[0]}>
+            <DialogField label={t("starts")} error={fieldErrors.startAt?.[0]}>
               <select
                 value={startTime}
                 onChange={(event) => changeStart(event.target.value)}
@@ -220,13 +233,13 @@ export function BookingDialog({
                 {timeOptions.slice(0, -1).map((time) => (
                   <option key={time} value={time}>
                     {localDay.crossesDate
-                      ? localSlotDateTimeLabel(date, time, userZone)
+                      ? localSlotDateTimeLabel(date, time, userZone, locale)
                       : localSlotTimeLabel(date, time, userZone)}
                   </option>
                 ))}
               </select>
             </DialogField>
-            <DialogField label="Ends" error={fieldErrors.endAt?.[0]}>
+            <DialogField label={t("ends")} error={fieldErrors.endAt?.[0]}>
               <select
                 value={endTime}
                 onChange={(event) => setEndTime(event.target.value)}
@@ -235,7 +248,7 @@ export function BookingDialog({
                 {endTimeOptions.map((time) => (
                   <option key={time} value={time}>
                     {localDay.crossesDate
-                      ? localSlotDateTimeLabel(date, time, userZone)
+                      ? localSlotDateTimeLabel(date, time, userZone, locale)
                       : localSlotTimeLabel(date, time, userZone)}
                   </option>
                 ))}
@@ -251,11 +264,11 @@ export function BookingDialog({
                 onChange={(event) => setRepeatWeekly(event.target.checked)}
                 className="size-4 rounded border-slate-300 text-indigo-600"
               />
-              <Repeat2 className="size-4 text-indigo-500" /> Repeat weekly
+              <Repeat2 className="size-4 text-indigo-500" /> {t("repeatWeekly")}
             </label>
             {repeatWeekly && (
               <label className="mt-3 flex items-center justify-between gap-4 text-sm text-slate-600">
-                Number of occurrences
+                {t("occurrences")}
                 <select
                   value={occurrenceCount}
                   onChange={(event) => setOccurrenceCount(Number(event.target.value))}
@@ -273,7 +286,7 @@ export function BookingDialog({
 
           <div className="flex items-start gap-2 rounded-xl bg-slate-50 px-3 py-2.5 text-xs leading-5 text-slate-500">
             <Clock3 className="mt-0.5 size-4 shrink-0 text-indigo-500" />
-            Office hours are 09:00–19:00 Europe/Kyiv. Maximum duration is 4 hours.
+            {t("rules")}
           </div>
 
           {message && (
@@ -291,7 +304,7 @@ export function BookingDialog({
               onClick={onClose}
               className="h-11 rounded-xl border border-slate-200 px-4 text-sm font-semibold text-slate-600 hover:bg-slate-50"
             >
-              Cancel
+              {tCommon("cancel")}
             </button>
             <button
               type="submit"
@@ -303,7 +316,7 @@ export function BookingDialog({
               ) : (
                 <Plus className="size-4" />
               )}
-              Book room
+              {t("submit")}
             </button>
           </div>
         </form>

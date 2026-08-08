@@ -1,13 +1,15 @@
 import { AuthForm } from "@/components/auth-form";
+import { getTranslations } from "next-intl/server";
 
-export default function LoginPage() {
+export default async function LoginPage() {
+  const t = await getTranslations("Auth");
   return (
     <div>
-      <p className="text-sm font-semibold text-indigo-600">Welcome back</p>
+      <p className="text-sm font-semibold text-indigo-600">{t("loginEyebrow")}</p>
       <h2 className="mt-2 text-4xl font-semibold tracking-tight text-slate-950">
-        Sign in to Roomly
+        {t("loginTitle")}
       </h2>
-      <p className="mt-3 text-slate-500">Your next meeting room is a few clicks away.</p>
+      <p className="mt-3 text-slate-500">{t("loginDescription")}</p>
       <AuthForm mode="login" />
     </div>
   );

@@ -2,6 +2,7 @@ import { AppNavigation } from "@/components/app-navigation";
 import { Brand } from "@/components/brand";
 import { EmailVerificationBanner } from "@/components/email-verification-banner";
 import { LogoutButton } from "@/components/logout-button";
+import { LanguageSwitcher } from "@/components/language-switcher";
 import { NotificationCenter } from "@/components/notification-center";
 import { requirePageUser } from "@/lib/session";
 
@@ -15,6 +16,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <Brand />
           <AppNavigation />
           <div className="ml-auto flex items-center gap-3">
+            <div className="hidden sm:block">
+              <LanguageSwitcher />
+            </div>
             <NotificationCenter />
             <div className="hidden text-right md:block">
               <p className="text-sm font-semibold text-slate-800">{user.name}</p>
@@ -28,6 +32,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </div>
         <div className="flex border-t border-slate-100 px-3 py-2 sm:hidden">
           <AppNavigation mobile />
+          <LanguageSwitcher />
         </div>
       </header>
       {!user.emailVerified && <EmailVerificationBanner />}

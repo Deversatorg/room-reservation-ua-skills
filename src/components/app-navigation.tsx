@@ -2,19 +2,20 @@
 
 import { CalendarRange, ListChecks } from "lucide-react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { usePathname } from "next/navigation";
-
-const navigation = [
-  { href: "/schedule", icon: CalendarRange, label: "Schedule" },
-  { href: "/my-bookings", icon: ListChecks, label: "My bookings" },
-] as const;
 
 export function AppNavigation({ mobile = false }: { mobile?: boolean }) {
   const pathname = usePathname();
+  const t = useTranslations("Navigation");
+  const navigation = [
+    { href: "/schedule", icon: CalendarRange, label: t("schedule") },
+    { href: "/my-bookings", icon: ListChecks, label: t("myBookings") },
+  ] as const;
 
   return (
     <nav
-      aria-label="Primary navigation"
+      aria-label={t("primary")}
       className={
         mobile
           ? "grid flex-1 grid-cols-2 gap-1"

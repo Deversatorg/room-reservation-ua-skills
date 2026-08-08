@@ -5,7 +5,9 @@
 ![Next.js 16](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs)
 ![PostgreSQL 17](https://img.shields.io/badge/PostgreSQL-17-4169E1?logo=postgresql&logoColor=white)
 
-Roomly is a timezone-aware meeting-room reservation application built for the UA-Skills event2 competition. It combines a hand-built calendar, strict server-side booking rules, database-level race protection, weekly series, email verification, exactly-once in-app handoff notifications, and a smart room availability finder.
+Roomly is a bilingual, timezone-aware meeting-room reservation application built for the UA-Skills event2 competition. It combines a hand-built calendar, strict server-side booking rules, database-level race protection, weekly series, email verification, exactly-once in-app handoff notifications, and a smart room availability finder.
+
+Roomly — це двомовний сервіс бронювання переговорних кімнат, створений для конкурсу UA-Skills event2. Українська мова використовується за замовчуванням, а перемикання на англійську доступне на кожному екрані.
 
 **Live demo:** [https://roomly-ua-skills.vercel.app](https://roomly-ua-skills.vercel.app)
 
@@ -50,6 +52,7 @@ The seed creates six meeting rooms, ordinary reservations, and a three-occurrenc
 | Cancellation rights | Soft cancellation; only the author may cancel | Try cancelling Alex's booking as Maria in API tests |
 | Personal history | Upcoming/past tabs, deep links back to the schedule | Open **My bookings** |
 | Smart availability search | Finds every exact room that fits, or ranks the nearest free alternatives over 14 days | Click **Find a room**, enter time, duration, and people, then choose a result |
+| Ukrainian and English UI | `next-intl` dictionaries, localized dates/plurals/errors, persistent server-set locale cookie, Ukrainian default | Use the **UK / EN** control on auth or application screens; run the localization E2E |
 
 ## All 8 bonus features
 
@@ -64,11 +67,18 @@ The seed creates six meeting rooms, ordinary reservations, and a three-occurrenc
 | 7. Capacity filter | `GET /api/rooms?minCapacity=N`, URL persistence, automatic valid-room selection | API and desktop E2E tests |
 | 8. Mobile day calendar | One-day view below 768 px, swipe/day navigation, room selector, sticky times, bottom sheet | 390 px E2E with overflow/focus assertions |
 
+## Bilingual interface
+
+The complete product UI is available in Ukrainian and English. Ukrainian is the default for new visitors, while the selected language is stored in a secure, same-site cookie and survives sign-in, navigation, and reloads. Existing routes stay stable (`/schedule`, not locale-prefixed variants), so localization does not disturb deep links or API clients.
+
+Translations use `next-intl` with structurally verified EN/UA dictionaries. The implementation covers interface copy, metadata, validation and API error codes, notifications, dialog accessibility labels, ICU plurals, and locale-aware calendar dates. User-created meeting titles, names, and seeded room names remain unchanged.
+
 ## Architecture
 
 ```mermaid
 flowchart LR
   UI["Next.js UI\ndesktop + mobile"] --> API["App Router\nroute handlers"]
+  I18N["next-intl\nUK default + EN"] --> UI
   API --> AUTH["Auth and email\nverification services"]
   API --> BOOK["Booking domain\nservice"]
   API --> NOTIFY["Notification claim\nservice"]
@@ -116,6 +126,7 @@ Weekly occurrences are calculated from the Kyiv wall clock and converted to UTC 
 | `POST` | `/api/notifications/poll` | Atomically claim newly eligible notifications |
 | `GET` | `/api/notifications` | Notification history |
 | `PATCH` | `/api/notifications/:id/read` | Mark a notification as read |
+| `POST` | `/api/locale` | Persist `uk` or `en` without changing application routes |
 | `GET` | `/api/health` | Runtime and database health |
 
 Errors consistently use `{ "error": { "code", "message", "fieldErrors?" } }` and meaningful `401`, `403`, `404`, `409`, and `422` statuses.
@@ -141,10 +152,10 @@ docker compose logs app
 ## Test matrix
 
 ```bash
-npm test                 # 28 Vitest unit tests
-npm run test:integration # 5 Playwright API tests
-npm run test:e2e         # 7 Chromium UI/Axe tests
-npm run test:browser     # all 12 browser/API tests on a fresh test DB
+npm test                 # 34 Vitest unit tests
+npm run test:integration # 6 Playwright API tests
+npm run test:e2e         # 10 Chromium UI/Axe tests
+npm run test:browser     # all 16 browser/API tests on a fresh test DB
 npm run test:race        # standalone database race proof
 npm run lint
 npm run build
@@ -183,4 +194,4 @@ See [the 3-minute competition demo script](docs/demo-script.md) for the judging 
 - Email delivery uses the safe development log transport; no SMTP provider is required.
 - Recurrence is weekly only and limited to 12 occurrences.
 - Notifications are delivered inside an open application through polling; there are no push notifications.
-- Product UI copy remains in English.
+- User-provided names, meeting titles, and seeded room names are displayed as entered rather than machine-translated.

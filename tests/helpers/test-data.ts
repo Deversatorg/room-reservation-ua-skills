@@ -5,6 +5,25 @@ import { DateTime } from "luxon";
 export const DEMO_PASSWORD = "DemoPass123!";
 export const OFFICE_TIME_ZONE = "Europe/Kyiv";
 
+export function localeStorageState(baseURL: string, locale: "en" | "uk") {
+  const origin = new URL(baseURL);
+  return {
+    cookies: [
+      {
+        name: "roomly_locale",
+        value: locale,
+        domain: origin.hostname,
+        path: "/",
+        expires: -1,
+        httpOnly: true,
+        secure: origin.protocol === "https:",
+        sameSite: "Lax" as const,
+      },
+    ],
+    origins: [],
+  };
+}
+
 export function futureOfficeSlot({
   weeks = 8,
   weekday = 2,

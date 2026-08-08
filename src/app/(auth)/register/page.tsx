@@ -1,13 +1,15 @@
 import { AuthForm } from "@/components/auth-form";
+import { getTranslations } from "next-intl/server";
 
-export default function RegisterPage() {
+export default async function RegisterPage() {
+  const t = await getTranslations("Auth");
   return (
     <div>
-      <p className="text-sm font-semibold text-indigo-600">Get started</p>
+      <p className="text-sm font-semibold text-indigo-600">{t("registerEyebrow")}</p>
       <h2 className="mt-2 text-4xl font-semibold tracking-tight text-slate-950">
-        Create your account
+        {t("registerTitle")}
       </h2>
-      <p className="mt-3 text-slate-500">Book focused time for you and your team.</p>
+      <p className="mt-3 text-slate-500">{t("registerDescription")}</p>
       <AuthForm mode="register" />
     </div>
   );

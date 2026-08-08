@@ -1,16 +1,22 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { ArrowRight, LoaderCircle } from "lucide-react";
 
+import type { ApiErrorCode } from "@/lib/api";
+
 type ApiError = {
-  error?: { message?: string; fieldErrors?: Record<string, string[]> };
+  error?: { code?: ApiErrorCode; message?: string; fieldErrors?: Record<string, string[]> };
 };
 
 export function AuthForm({ mode }: { mode: "login" | "register" }) {
   const router = useRouter();
+  const t = useTranslations("Auth");
+  const tApi = useTranslations("ApiErrors");
+  const tValidation = useTranslations("Validation");
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<string>();
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
@@ -33,15 +39,20 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
       const data = (await response.json()) as ApiError;
 
       if (!response.ok) {
-        setMessage(data.error?.message ?? "Something went wrong.");
-        setFieldErrors(data.error?.fieldErrors ?? {});
+        setMessage(data.error?.code ? tApi(data.error.code) : t("somethingWrong"));
+        const errors = data.error?.fieldErrors;
+        setFieldErrors({
+          ...(errors?.name ? { name: [tValidation("name")] } : {}),
+          ...(errors?.email ? { email: [tValidation("email")] } : {}),
+          ...(errors?.password ? { password: [tValidation("password")] } : {}),
+        });
         return;
       }
 
       router.push(isRegister ? "/verify-email" : "/schedule");
       router.refresh();
     } catch {
-      setMessage("The server is unavailable. Please try again.");
+      setMessage(tApi("SERVER_ERROR"));
     } finally {
       setPending(false);
     }
@@ -51,15 +62,15 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
     <form className="mt-8 space-y-5" onSubmit={handleSubmit} noValidate>
       {isRegister && (
         <Field
-          label="Full name"
+          label={t("fullName")}
           name="name"
-          placeholder="Alex Johnson"
+          placeholder={t("fullNamePlaceholder")}
           autoComplete="name"
           error={fieldErrors.name?.[0]}
         />
       )}
       <Field
-        label="Work email"
+        label={t("workEmail")}
         name="email"
         type="email"
         placeholder="alex@company.com"
@@ -67,10 +78,10 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
         error={fieldErrors.email?.[0]}
       />
       <Field
-        label="Password"
+        label={t("password")}
         name="password"
         type="password"
-        placeholder={isRegister ? "8–72 characters" : "Your password"}
+        placeholder={isRegister ? t("newPasswordPlaceholder") : t("passwordPlaceholder")}
         autoComplete={isRegister ? "new-password" : "current-password"}
         error={fieldErrors.password?.[0]}
       />
@@ -93,19 +104,19 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
           <LoaderCircle className="size-5 animate-spin" />
         ) : (
           <>
-            {isRegister ? "Create account" : "Sign in"}
+            {isRegister ? t("createAccount") : t("signIn")}
             <ArrowRight className="size-4" />
           </>
         )}
       </button>
 
       <p className="text-center text-sm text-slate-500">
-        {isRegister ? "Already have an account?" : "New to Roomly?"}{" "}
+        {isRegister ? t("alreadyRegistered") : t("newToRoomly")}{" "}
         <Link
           href={isRegister ? "/login" : "/register"}
           className="font-semibold text-indigo-600 hover:text-indigo-700"
         >
-          {isRegister ? "Sign in" : "Create an account"}
+          {isRegister ? t("signIn") : t("createAccount")}
         </Link>
       </p>
     </form>

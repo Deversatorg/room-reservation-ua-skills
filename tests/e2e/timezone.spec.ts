@@ -4,6 +4,7 @@ import { DateTime } from "luxon";
 import {
   futureOfficeSlot,
   loginPage,
+  localeStorageState,
   OFFICE_TIME_ZONE,
 } from "../helpers/test-data";
 
@@ -33,6 +34,7 @@ for (const scenario of scenarios) {
       baseURL,
       timezoneId: scenario.timezoneId,
       viewport: scenario.viewport,
+      storageState: localeStorageState(baseURL!, "en"),
     });
     const page = await context.newPage();
 

@@ -2,6 +2,7 @@
 
 import { DateTime } from "luxon";
 import { CalendarClock, MapPin, Repeat2, UserRound, Users, X } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import { useRef, type ReactNode } from "react";
 
 import { useAccessibleDialog } from "@/hooks/use-accessible-dialog";
@@ -18,6 +19,9 @@ export function BookingDetailsDialog({
   onClose: () => void;
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
+  const locale = useLocale();
+  const t = useTranslations("Details");
+  const tCommon = useTranslations("Common");
   useAccessibleDialog(dialogRef, onClose);
 
   const localStart = DateTime.fromISO(booking.startAt).setZone(userZone);
@@ -41,7 +45,7 @@ export function BookingDetailsDialog({
           </span>
           <div className="min-w-0 flex-1">
             <p className="text-xs font-bold uppercase tracking-[0.14em] text-indigo-600">
-              Booking details
+              {t("eyebrow")}
             </p>
             <h2
               id="booking-details-title"
@@ -53,7 +57,7 @@ export function BookingDetailsDialog({
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close booking details"
+            aria-label={t("close")}
             className="grid size-9 shrink-0 place-items-center rounded-lg text-slate-500 hover:bg-slate-100"
           >
             <X className="size-5" />
@@ -62,31 +66,31 @@ export function BookingDetailsDialog({
 
         <p id="booking-details-description" className="mt-4 text-sm leading-6 text-slate-600">
           {booking.isOwner
-            ? "This booking has ended and is kept as read-only history."
-            : "This booking belongs to another Roomly member and is available for viewing only."}
+            ? t("ownHistory")
+            : t("otherBooking")}
         </p>
 
         <dl className="mt-5 divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-slate-50 px-4">
-          <DetailRow icon={<UserRound className="size-4" />} label="Organizer">
+          <DetailRow icon={<UserRound className="size-4" />} label={t("organizer")}>
             {booking.author.name}
           </DetailRow>
-          <DetailRow icon={<MapPin className="size-4" />} label="Room">
-            {booking.room.name} · Floor {booking.room.floor}
+          <DetailRow icon={<MapPin className="size-4" />} label={t("room")}>
+            {booking.room.name} · {tCommon("floor", { floor: booking.room.floor })}
           </DetailRow>
-          <DetailRow icon={<Users className="size-4" />} label="Capacity">
-            {booking.room.capacity} people
+          <DetailRow icon={<Users className="size-4" />} label={t("capacity")}>
+            {tCommon("people", { count: booking.room.capacity })}
           </DetailRow>
-          <DetailRow icon={<CalendarClock className="size-4" />} label={`Time · ${userZone}`}>
-            {formatRange(localStart, localEnd)}
+          <DetailRow icon={<CalendarClock className="size-4" />} label={t("time", { timezone: userZone })}>
+            {formatRange(localStart, localEnd, locale)}
           </DetailRow>
           {userZone !== OFFICE_TIME_ZONE ? (
-            <DetailRow icon={<CalendarClock className="size-4" />} label="Office time · Europe/Kyiv">
-              {formatRange(officeStart, officeEnd)}
+            <DetailRow icon={<CalendarClock className="size-4" />} label={t("officeTime")}>
+              {formatRange(officeStart, officeEnd, locale)}
             </DetailRow>
           ) : null}
           {booking.series ? (
-            <DetailRow icon={<Repeat2 className="size-4" />} label="Recurring booking">
-              Weekly · Occurrence {booking.series.occurrence} of {booking.series.count}
+            <DetailRow icon={<Repeat2 className="size-4" />} label={t("recurring")}>
+              {t("weekly", { occurrence: booking.series.occurrence, count: booking.series.count })}
             </DetailRow>
           ) : null}
         </dl>
@@ -97,7 +101,7 @@ export function BookingDetailsDialog({
           data-dialog-initial-focus
           className="mt-6 h-11 w-full rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-800"
         >
-          Done
+          {tCommon("done")}
         </button>
       </div>
     </div>
@@ -124,9 +128,11 @@ function DetailRow({
   );
 }
 
-function formatRange(start: DateTime, end: DateTime) {
-  if (start.hasSame(end, "day")) {
-    return `${start.toFormat("cccc, LLLL d · HH:mm")}–${end.toFormat("HH:mm")}`;
+function formatRange(start: DateTime, end: DateTime, locale: string) {
+  const localizedStart = start.setLocale(locale);
+  const localizedEnd = end.setLocale(locale);
+  if (localizedStart.hasSame(localizedEnd, "day")) {
+    return `${localizedStart.toLocaleString({ weekday: "long", month: "long", day: "numeric" })} · ${localizedStart.toFormat("HH:mm")}–${localizedEnd.toFormat("HH:mm")}`;
   }
-  return `${start.toFormat("ccc, LLL d · HH:mm")}–${end.toFormat("ccc, LLL d · HH:mm")}`;
+  return `${localizedStart.toLocaleString({ weekday: "short", month: "short", day: "numeric" })} · ${localizedStart.toFormat("HH:mm")}–${localizedEnd.toLocaleString({ weekday: "short", month: "short", day: "numeric" })} · ${localizedEnd.toFormat("HH:mm")}`;
 }

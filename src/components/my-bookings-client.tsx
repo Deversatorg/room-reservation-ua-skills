@@ -15,9 +15,11 @@ import {
   Trash2,
 } from "lucide-react";
 import Link from "next/link";
+import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
 import { useUserTimeZone } from "@/hooks/use-user-time-zone";
+import type { ApiErrorCode } from "@/lib/api";
 import { OFFICE_TIME_ZONE } from "@/lib/booking-rules";
 import type { BookingDto } from "@/lib/types";
 import { CancelBookingDialog } from "@/components/cancel-booking-dialog";
@@ -28,6 +30,9 @@ type BookingPage = {
 };
 
 export function MyBookingsClient() {
+  const t = useTranslations("MyBookings");
+  const tCommon = useTranslations("Common");
+  const tApi = useTranslations("ApiErrors");
   const userZone = useUserTimeZone();
   const [activeTab, setActiveTab] = useState<"upcoming" | "past">("upcoming");
   const [upcoming, setUpcoming] = useState<BookingDto[]>([]);
@@ -53,17 +58,19 @@ export function MyBookingsClient() {
           fetch("/api/me/bookings?status=past", { signal: controller.signal }),
         ]);
         const upcomingData = (await upcomingResponse.json()) as BookingPage & {
-          error?: { message?: string };
+          error?: { code?: ApiErrorCode };
         };
         const pastData = (await pastResponse.json()) as BookingPage & {
-          error?: { message?: string };
+          error?: { code?: ApiErrorCode };
         };
 
         if (!upcomingResponse.ok || !pastResponse.ok) {
           throw new Error(
-            upcomingData.error?.message ??
-              pastData.error?.message ??
-              "Could not load your bookings.",
+            upcomingData.error?.code
+              ? tApi(upcomingData.error.code)
+              : pastData.error?.code
+                ? tApi(pastData.error.code)
+                : t("loadFailed"),
           );
         }
 
@@ -73,7 +80,7 @@ export function MyBookingsClient() {
       } catch (loadError) {
         if (loadError instanceof DOMException && loadError.name === "AbortError") return;
         setError(
-          loadError instanceof Error ? loadError.message : "Could not load your bookings.",
+          loadError instanceof Error ? loadError.message : t("loadFailed"),
         );
       } finally {
         if (!controller.signal.aborted) setLoading(false);
@@ -82,7 +89,7 @@ export function MyBookingsClient() {
 
     void loadInitial();
     return () => controller.abort();
-  }, [refreshKey]);
+  }, [refreshKey, t, tApi]);
 
   async function loadMore() {
     if (!nextCursor) return;
@@ -93,13 +100,15 @@ export function MyBookingsClient() {
         `/api/me/bookings?status=past&cursor=${encodeURIComponent(nextCursor)}`,
       );
       const data = (await response.json()) as BookingPage & {
-        error?: { message?: string };
+        error?: { code?: ApiErrorCode };
       };
-      if (!response.ok) throw new Error(data.error?.message ?? "Could not load more.");
+      if (!response.ok) {
+        throw new Error(data.error?.code ? tApi(data.error.code) : t("loadMoreFailed"));
+      }
       setPast((current) => [...current, ...data.bookings]);
       setNextCursor(data.nextCursor);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Could not load more.");
+      setError(loadError instanceof Error ? loadError.message : t("loadMoreFailed"));
     } finally {
       setLoadingMore(false);
     }
@@ -114,8 +123,8 @@ export function MyBookingsClient() {
         { method: "DELETE" },
       );
       if (!response.ok) {
-        const data = (await response.json()) as { error?: { message?: string } };
-        setError(data.error?.message ?? "Could not cancel the booking.");
+        const data = (await response.json()) as { error?: { code?: ApiErrorCode } };
+        setError(data.error?.code ? tApi(data.error.code) : t("cancelFailed"));
         return;
       }
 
@@ -129,7 +138,7 @@ export function MyBookingsClient() {
       );
       setBookingToCancel(undefined);
     } catch {
-      setError("The server is unavailable. Please try again.");
+      setError(tCommon("serverUnavailable"));
     } finally {
       setCancelPending(false);
     }
@@ -142,18 +151,18 @@ export function MyBookingsClient() {
       <div className="ui-enter flex flex-wrap items-end justify-between gap-5">
         <div>
           <p className="inline-flex items-center gap-2 rounded-full border border-indigo-200/80 bg-indigo-50/80 px-3 py-1 text-xs font-bold uppercase tracking-[0.12em] text-indigo-700">
-            <CalendarDays className="size-3.5" /> Personal schedule
+            <CalendarDays className="size-3.5" /> {t("eyebrow")}
           </p>
           <h1 className="mt-3 text-3xl font-semibold tracking-[-0.035em] text-slate-950 sm:text-4xl">
-            My bookings
+            {t("title")}
           </h1>
           <p className="mt-2 text-slate-500">
-            Everything you booked, ordered around what matters next.
+            {t("description")}
           </p>
         </div>
         <span className="inline-flex items-center gap-2 rounded-xl border border-white/80 bg-white/90 px-3 py-2 text-sm text-slate-600 shadow-[0_4px_16px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/70 backdrop-blur">
           <Globe2 className="size-4 text-indigo-500" />
-          {userZone ?? "Detecting timezone…"}
+          {userZone ?? tCommon("detectingTimezone")}
         </span>
       </div>
 
@@ -161,13 +170,13 @@ export function MyBookingsClient() {
         <TabButton
           active={activeTab === "upcoming"}
           onClick={() => setActiveTab("upcoming")}
-          label="Upcoming"
+          label={t("upcoming")}
           count={upcoming.length}
         />
         <TabButton
           active={activeTab === "past"}
           onClick={() => setActiveTab("past")}
-          label="Past"
+          label={t("past")}
           count={past.length}
         />
       </div>
@@ -180,7 +189,7 @@ export function MyBookingsClient() {
             onClick={() => setRefreshKey((value) => value + 1)}
             className="ml-auto inline-flex items-center gap-1 font-semibold"
           >
-            <RefreshCw className="size-4" /> Retry
+            <RefreshCw className="size-4" /> {tCommon("retry")}
           </button>
         </div>
       )}
@@ -212,7 +221,7 @@ export function MyBookingsClient() {
             className="inline-flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-600 shadow-sm hover:bg-slate-50 disabled:opacity-60"
           >
             {loadingMore && <LoaderCircle className="size-4 animate-spin" />}
-            Load more
+            {t("loadMore")}
           </button>
         </div>
       )}
@@ -239,8 +248,10 @@ function BookingRow({
   showCancel: boolean;
   onCancel: (booking: BookingDto) => void;
 }) {
-  const start = DateTime.fromISO(booking.startAt).setZone(userZone);
-  const end = DateTime.fromISO(booking.endAt).setZone(userZone);
+  const locale = useLocale();
+  const t = useTranslations("MyBookings");
+  const start = DateTime.fromISO(booking.startAt).setZone(userZone).setLocale(locale);
+  const end = DateTime.fromISO(booking.endAt).setZone(userZone).setLocale(locale);
   const officeStart = DateTime.fromISO(booking.startAt).setZone(OFFICE_TIME_ZONE);
   const officeWeek = officeStart
     .startOf("week")
@@ -267,17 +278,17 @@ function BookingRow({
         </h2>
         {booking.series && (
           <span className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-indigo-600">
-            <Repeat2 className="size-3" /> Weekly · {booking.series.occurrence} of {booking.series.count}
+            <Repeat2 className="size-3" /> {t("weekly", { occurrence: booking.series.occurrence, count: booking.series.count })}
           </span>
         )}
         <div className="mt-2.5 flex flex-wrap gap-2 text-sm text-slate-500">
           <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-50 px-2.5 py-1 ring-1 ring-slate-100">
             <Clock3 className="size-4 text-slate-400" />
-            {start.toFormat("ccc, LLL d · HH:mm")}–{end.toFormat("HH:mm")}
+            {start.toLocaleString({ weekday: "short", month: "short", day: "numeric" })} · {start.toFormat("HH:mm")}–{end.toFormat("HH:mm")}
           </span>
           <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-50 px-2.5 py-1 ring-1 ring-slate-100">
             <MapPin className="size-4 text-slate-400" />
-            {booking.room.name}, floor {booking.room.floor}
+            {t("roomFloor", { room: booking.room.name, floor: booking.room.floor })}
           </span>
         </div>
       </Link>
@@ -288,7 +299,7 @@ function BookingRow({
             type="button"
             onClick={() => void onCancel(booking)}
             className="grid size-10 place-items-center rounded-xl border border-slate-200 text-slate-400 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600"
-            aria-label={`Cancel ${booking.title}`}
+            aria-label={t("cancelLabel", { title: booking.title })}
           >
             <Trash2 className="size-4" />
           </button>
@@ -296,7 +307,7 @@ function BookingRow({
         <Link
           href={href}
           className="grid size-10 place-items-center rounded-xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
-          aria-label={`Open ${booking.title} in schedule`}
+          aria-label={t("openLabel", { title: booking.title })}
         >
           <ChevronRight className="size-5" />
         </Link>
@@ -346,6 +357,7 @@ function BookingListSkeleton() {
 }
 
 function EmptyBookings({ status }: { status: "upcoming" | "past" }) {
+  const t = useTranslations("MyBookings");
   const isUpcoming = status === "upcoming";
   const Icon = isUpcoming ? CalendarClock : CalendarX2;
 
@@ -355,19 +367,19 @@ function EmptyBookings({ status }: { status: "upcoming" | "past" }) {
         <Icon className="size-6" />
       </span>
       <h2 className="mt-4 text-lg font-semibold text-slate-950">
-        {isUpcoming ? "Nothing booked yet" : "No past bookings"}
+        {isUpcoming ? t("emptyUpcomingTitle") : t("emptyPastTitle")}
       </h2>
       <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
         {isUpcoming
-          ? "Pick a room and reserve your next focused conversation."
-          : "Completed bookings will be kept here for easy reference."}
+          ? t("emptyUpcomingDescription")
+          : t("emptyPastDescription")}
       </p>
       {isUpcoming && (
         <Link
           href="/schedule"
           className="mt-5 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white"
         >
-          Open schedule <ChevronRight className="size-4" />
+          {t("openSchedule")} <ChevronRight className="size-4" />
         </Link>
       )}
     </div>

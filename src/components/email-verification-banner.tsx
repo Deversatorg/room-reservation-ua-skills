@@ -2,9 +2,12 @@
 
 import { MailWarning } from "lucide-react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 export function EmailVerificationBanner() {
+  const t = useTranslations("Verification");
+  const tCommon = useTranslations("Common");
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<string>();
 
@@ -13,14 +16,13 @@ export function EmailVerificationBanner() {
     setMessage(undefined);
     try {
       const response = await fetch("/api/auth/resend-verification", { method: "POST" });
-      const data = (await response.json()) as { error?: { message?: string } };
       setMessage(
         response.ok
-          ? "A new link was written to the server log."
-          : (data.error?.message ?? "Could not create a new link."),
+          ? t("newLink")
+          : t("newLinkFailed"),
       );
     } catch {
-      setMessage("The server is unavailable. Please try again.");
+      setMessage(tCommon("serverUnavailable"));
     } finally {
       setPending(false);
     }
@@ -31,13 +33,12 @@ export function EmailVerificationBanner() {
       <div className="mx-auto flex max-w-[1600px] flex-wrap items-center gap-3 text-sm sm:px-2 lg:px-4">
         <MailWarning className="size-4 shrink-0 text-amber-600" />
         <p>
-          Verify your email before booking. In development, the link appears in the
-          server log.
+          {t("banner")}
         </p>
         <div className="ml-auto flex items-center gap-3">
           {message && <span role="status" className="text-xs text-amber-700">{message}</span>}
           <Link href="/verify-email" className="font-semibold underline underline-offset-4">
-            Verification page
+            {t("page")}
           </Link>
           <button
             type="button"
@@ -45,7 +46,7 @@ export function EmailVerificationBanner() {
             onClick={() => void resend()}
             className="rounded-lg bg-amber-900 px-3 py-1.5 font-semibold text-white disabled:opacity-60"
           >
-            {pending ? "Sending…" : "Resend link"}
+            {pending ? t("sending") : t("resend")}
           </button>
         </div>
       </div>
