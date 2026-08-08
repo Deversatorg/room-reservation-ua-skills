@@ -207,6 +207,13 @@
     "dismiss": "Dismiss notification",
     "item": "Ends at {time} in {room}. Next: {title}."
   },
+  "Toasts": {
+    "bookingCreated": "Booking created",
+    "bookingSeriesCreated": "{count} weekly bookings created",
+    "bookingCancelled": "Booking cancelled",
+    "bookingSeriesCancelled": "Future occurrences cancelled",
+    "dismiss": "Dismiss confirmation"
+  },
   "ApiErrors": {
     "AUTH_REQUIRED": "Please sign in to continue.",
     "FORBIDDEN": "You do not have permission to do that.",

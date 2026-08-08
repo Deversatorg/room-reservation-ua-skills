@@ -39,6 +39,7 @@ import {
   type SelectedSlot,
 } from "@/components/schedule/booking-dialog";
 import { FindRoomDialog } from "@/components/schedule/find-room-dialog";
+import { useToast } from "@/components/toast-provider";
 import { useUserTimeZone } from "@/hooks/use-user-time-zone";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import {
@@ -75,6 +76,8 @@ export function ScheduleClient({
   const t = useTranslations("Schedule");
   const tCommon = useTranslations("Common");
   const tApi = useTranslations("ApiErrors");
+  const tToasts = useTranslations("Toasts");
+  const { showToast } = useToast();
   const [roomId, setRoomId] = useState(initialRoomId);
   const [weekStart, setWeekStart] = useState(initialWeek);
   const [selectedDay, setSelectedDay] = useState(initialDay);
@@ -229,6 +232,11 @@ export function ScheduleClient({
 
       setSelectedBooking(undefined);
       setRefreshKey((value) => value + 1);
+      showToast(
+        scope === "series"
+          ? tToasts("bookingSeriesCancelled")
+          : tToasts("bookingCancelled"),
+      );
     } catch {
       window.alert(tCommon("serverUnavailable"));
     } finally {
@@ -236,7 +244,11 @@ export function ScheduleClient({
     }
   }
 
-  function handleCreated(nextRoomId: string, officeDate: string) {
+  function handleCreated(
+    nextRoomId: string,
+    officeDate: string,
+    bookingCount: number,
+  ) {
     const nextWeek = DateTime.fromISO(officeDate, { zone: OFFICE_TIME_ZONE })
       .startOf("week")
       .toISODate()!;
@@ -248,6 +260,11 @@ export function ScheduleClient({
       : 0;
     updateLocation(nextRoomId, nextWeek, officeDate, nextCapacity);
     setRefreshKey((value) => value + 1);
+    showToast(
+      bookingCount > 1
+        ? tToasts("bookingSeriesCreated", { count: bookingCount })
+        : tToasts("bookingCreated"),
+    );
   }
 
   function openBooking(slot: SelectedSlot) {

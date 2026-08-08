@@ -23,6 +23,9 @@ test("creates a recurring booking, opens it in the schedule, and cancels the ser
   await page.getByLabel("Number of occurrences").selectOption("3");
   await page.getByRole("button", { name: "Book room" }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(
+    page.getByRole("status").filter({ hasText: "3 weekly bookings created" }),
+  ).toBeVisible();
 
   await page.getByRole("link", { name: "My bookings" }).click();
   await expect(page.getByRole("heading", { name: "My bookings" })).toBeVisible();
@@ -39,6 +42,9 @@ test("creates a recurring booking, opens it in the schedule, and cancels the ser
   await expect(page.getByRole("dialog", { name: "Cancel booking?" })).toBeVisible();
   await page.getByRole("button", { name: "Cancel all future occurrences" }).click();
   await expect(page.getByText(title, { exact: true })).toHaveCount(0);
+  await expect(
+    page.getByRole("status").filter({ hasText: "Future occurrences cancelled" }),
+  ).toBeVisible();
 });
 
 test("uses a one-day, overflow-free calendar and bottom sheet at 390 px", async ({

@@ -23,6 +23,7 @@ import type { ApiErrorCode } from "@/lib/api";
 import { OFFICE_TIME_ZONE } from "@/lib/booking-rules";
 import type { BookingDto } from "@/lib/types";
 import { CancelBookingDialog } from "@/components/cancel-booking-dialog";
+import { useToast } from "@/components/toast-provider";
 
 type BookingPage = {
   bookings: BookingDto[];
@@ -33,6 +34,8 @@ export function MyBookingsClient() {
   const t = useTranslations("MyBookings");
   const tCommon = useTranslations("Common");
   const tApi = useTranslations("ApiErrors");
+  const tToasts = useTranslations("Toasts");
+  const { showToast } = useToast();
   const userZone = useUserTimeZone();
   const [activeTab, setActiveTab] = useState<"upcoming" | "past">("upcoming");
   const [upcoming, setUpcoming] = useState<BookingDto[]>([]);
@@ -137,6 +140,11 @@ export function MyBookingsClient() {
         ),
       );
       setBookingToCancel(undefined);
+      showToast(
+        scope === "series"
+          ? tToasts("bookingSeriesCancelled")
+          : tToasts("bookingCancelled"),
+      );
     } catch {
       setError(tCommon("serverUnavailable"));
     } finally {

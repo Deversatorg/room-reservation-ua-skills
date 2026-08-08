@@ -4,6 +4,7 @@ import { EmailVerificationBanner } from "@/components/email-verification-banner"
 import { LogoutButton } from "@/components/logout-button";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { NotificationCenter } from "@/components/notification-center";
+import { ToastProvider } from "@/components/toast-provider";
 import { requirePageUser } from "@/lib/session";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -36,7 +37,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </div>
       </header>
       {!user.emailVerified && <EmailVerificationBanner />}
-      {children}
+      <ToastProvider>{children}</ToastProvider>
     </div>
   );
 }

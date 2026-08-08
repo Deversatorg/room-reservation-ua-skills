@@ -50,7 +50,7 @@ export function BookingDialog({
   userZone: string;
   returnFocus: HTMLElement | null;
   onClose: () => void;
-  onCreated: (roomId: string, officeDate: string) => void;
+  onCreated: (roomId: string, officeDate: string, bookingCount: number) => void;
 }) {
   const locale = useLocale();
   const t = useTranslations("BookingDialog");
@@ -126,6 +126,7 @@ export function BookingDialog({
         }),
       });
       const data = (await response.json()) as {
+        bookings?: unknown[];
         error?: { code?: ApiErrorCode; fieldErrors?: Record<string, string[]> };
       };
 
@@ -141,7 +142,7 @@ export function BookingDialog({
         return;
       }
 
-      onCreated(roomId, date);
+      onCreated(roomId, date, data.bookings?.length ?? 1);
     } catch {
       setMessage(tCommon("serverUnavailable"));
     } finally {

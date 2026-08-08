@@ -207,6 +207,13 @@
     "dismiss": "Закрити сповіщення",
     "item": "Завершення о {time} у кімнаті {room}. Далі: {title}."
   },
+  "Toasts": {
+    "bookingCreated": "Бронювання створено",
+    "bookingSeriesCreated": "Створено {count, plural, one {# щотижневе бронювання} few {# щотижневі бронювання} many {# щотижневих бронювань} other {# щотижневого бронювання}}",
+    "bookingCancelled": "Бронювання скасовано",
+    "bookingSeriesCancelled": "Майбутні повторення скасовано",
+    "dismiss": "Закрити підтвердження"
+  },
   "ApiErrors": {
     "AUTH_REQUIRED": "Увійдіть, щоб продовжити.",
     "FORBIDDEN": "У вас немає дозволу на цю дію.",
